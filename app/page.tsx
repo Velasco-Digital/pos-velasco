@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabase';
 
-export default function VelascoPOS_Ultimate_Edition() {
+export default function VelascoPOS_Ultra_Detailed() {
   const [session, setSession] = useState(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -84,7 +84,7 @@ export default function VelascoPOS_Ultimate_Edition() {
   return (
     <div className="bg-slate-100 h-screen flex flex-col font-sans overflow-hidden text-black">
       
-      {/* CSS PARA TICKET TAMAÑO REAL */}
+      {/* CSS PARA TICKET (Respetando el ancho de 80mm que pediste) */}
       <style>{`
         @media screen { #printable-ticket { display: none; } }
         @media print {
@@ -93,36 +93,36 @@ export default function VelascoPOS_Ultimate_Edition() {
             #printable-ticket { 
                 position: absolute; left: 0; top: 0; 
                 width: 80mm !important; 
-                padding: 10mm;
+                padding: 5mm;
                 font-family: 'Courier New', Courier, monospace !important;
                 color: black !important;
             }
         }
       `}</style>
 
-      {/* DISEÑO DEL TICKET (ESTÉTICA COLUMNA) */}
+      {/* DISEÑO DEL TICKET */}
       <div id="printable-ticket">
           <center>
-            <h2 style={{fontSize: '20px', fontWeight: '900', margin: 0}}>VELASCO DIGITAL</h2>
-            <p style={{fontSize: '10px', margin: '5px 0'}}>Punto de Venta Profesional</p>
+            <h2 style={{fontSize: '18px', fontWeight: '900', margin: 0}}>VELASCO DIGITAL</h2>
+            <p style={{fontSize: '10px', margin: '5px 0'}}>Ticket de Compra</p>
             <p>===============================</p>
           </center>
-          <div style={{fontSize: '12px', margin: '15px 0'}}>
+          <div style={{fontSize: '11px', margin: '15px 0'}}>
             {ticketImpresion.items.map((it, idx) => (
-                <div key={idx} style={{display: 'flex', justifyContent: 'space-between', marginBottom: '5px'}}>
+                <div key={idx} style={{display: 'flex', justifyContent: 'space-between', marginBottom: '3px'}}>
                     <span>{it.cant}x {it.nombre}</span>
                     <span>${(it.precio * it.cant).toFixed(2)}</span>
                 </div>
             ))}
           </div>
           <p>===============================</p>
-          <div style={{display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '16px'}}>
+          <div style={{display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '14px'}}>
             <span>TOTAL:</span>
             <span>${ticketImpresion.total.toFixed(2)}</span>
           </div>
           <center>
-            <p style={{marginTop: '20px', fontSize: '10px'}}>{ticketImpresion.fecha}</p>
-            <p style={{fontSize: '9px', fontWeight: 'bold'}}>¡GRACIAS POR SU PREFERENCIA!</p>
+            <p style={{marginTop: '15px', fontSize: '10px'}}>{ticketImpresion.fecha}</p>
+            <p style={{fontSize: '9px'}}>*** Gracias por su compra ***</p>
           </center>
       </div>
 
@@ -136,17 +136,17 @@ export default function VelascoPOS_Ultimate_Edition() {
             <button onClick={() => setVista('corte')} className={`px-4 py-2 rounded-lg text-[10px] font-black ${vista === 'corte' ? 'bg-emerald-600 text-white' : 'text-gray-400'}`}>CORTE</button>
           </div>
         </div>
-        <button onClick={() => supabase.auth.signOut().then(()=>window.location.reload())} className="text-red-500 font-black text-[10px] uppercase border border-red-500/20 px-3 py-2 rounded-xl hover:bg-red-500 hover:text-white transition-all">Cerrar Sesión</button>
+        <button onClick={() => supabase.auth.signOut().then(()=>window.location.reload())} className="text-red-500 font-black text-[10px] uppercase border border-red-500/20 px-3 py-2 rounded-xl">Cerrar Sesión</button>
       </nav>
 
       {/* VISTA POS */}
       {vista === 'pos' && (
-        <main className="flex-1 flex overflow-hidden p-4 gap-4">
+        <main className="flex-1 flex overflow-hidden p-4 gap-4 animate-in fade-in">
           <section className="flex-[3] grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 content-start overflow-y-auto pr-2">
             {catalogo.map(p => (
-              <button key={p.id} onClick={() => agregarAlCarrito(p)} className="bg-white p-5 rounded-[2.5rem] shadow-sm border border-gray-100 hover:border-blue-500 transition-all active:scale-95 flex flex-col items-center">
+              <button key={p.id} onClick={() => agregarAlCarrito(p)} className="bg-white p-5 rounded-[2.5rem] shadow-sm border border-gray-100 hover:border-blue-500 active:scale-95 transition-all flex flex-col items-center">
                 <div className="text-3xl mb-2">{p.icono}</div>
-                <h3 className="font-bold text-slate-800 uppercase text-[10px] text-center h-8 mb-1 leading-tight">{p.nombre}</h3>
+                <h3 className="font-bold text-slate-800 uppercase text-[10px] text-center mb-1">{p.nombre}</h3>
                 <p className="text-blue-600 font-black text-sm">${parseFloat(p.precio).toFixed(2)}</p>
                 <div className={`mt-2 px-3 py-1 rounded-full text-[8px] font-black uppercase ${p.stock > 10 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>Stock: {p.stock}</div>
               </button>
@@ -154,46 +154,45 @@ export default function VelascoPOS_Ultimate_Edition() {
           </section>
 
           <section className="flex-1 min-w-[320px] bg-white rounded-[3rem] shadow-2xl flex flex-col overflow-hidden border">
-              <div className="p-6 bg-slate-50 border-b flex justify-between items-center font-black text-[10px] text-slate-400 uppercase tracking-[0.2em]">
-                <span>Carrito Activo</span>
-                <button onClick={() => setCarrito([])} className="text-red-400 hover:text-red-600">Limpiar</button>
+              <div className="p-6 bg-slate-50 border-b flex justify-between items-center font-black text-[10px] text-slate-400 uppercase tracking-widest">
+                <span>Venta actual</span>
+                <button onClick={() => setCarrito([])} className="text-red-400">Limpiar</button>
               </div>
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {carrito.map(i => (
-                    <div key={i.id} className="flex justify-between items-center text-xs border-b border-dashed border-slate-200 pb-3">
+                    <div key={i.id} className="flex justify-between items-center text-xs border-b border-dashed pb-3">
                         <div className="flex flex-col">
                             <span className="font-bold text-slate-800 uppercase">{i.nombre}</span>
                             <span className="text-[10px] text-blue-500 font-bold">{i.cant} x ${parseFloat(i.precio).toFixed(2)}</span>
                         </div>
-                        <span className="font-black text-slate-900 text-sm tabular-nums">${(i.precio * i.cant).toFixed(2)}</span>
+                        <span className="font-black text-slate-900 text-sm">${(i.precio * i.cant).toFixed(2)}</span>
                     </div>
                 ))}
               </div>
-              <div className="p-8 bg-slate-900 text-white rounded-t-[3.5rem] shadow-[0_-10px_40px_rgba(0,0,0,0.2)]">
+              <div className="p-8 bg-slate-900 text-white rounded-t-[3.5rem]">
                 <div className="flex justify-between items-end mb-8">
-                    <span className="text-blue-400 font-black italic text-sm uppercase tracking-widest">Total:</span>
-                    <span className="text-4xl font-black text-green-400 tracking-tighter tabular-nums">${(carrito.reduce((a,b)=>a+(b.precio*b.cant),0)*1.16).toFixed(2)}</span>
+                    <span className="text-blue-400 font-black italic text-sm">TOTAL:</span>
+                    <span className="text-4xl font-black text-green-400">${(carrito.reduce((a,b)=>a+(b.precio*b.cant),0)*1.16).toFixed(2)}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                    <button onClick={() => finalizarVenta(false)} className="bg-slate-700 py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest hover:bg-slate-600 transition-all">Solo Registro</button>
-                    <button onClick={() => finalizarVenta(true)} className="bg-blue-600 py-5 rounded-[1.5rem] font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-500/30 hover:bg-blue-500 transition-all">Generar Ticket</button>
+                    <button onClick={() => finalizarVenta(false)} className="bg-slate-700 py-5 rounded-[1.5rem] font-black text-[10px] uppercase">Solo Registro</button>
+                    <button onClick={() => finalizarVenta(true)} className="bg-blue-600 py-5 rounded-[1.5rem] font-black text-[10px] uppercase shadow-lg shadow-blue-500/30">Generar Ticket</button>
                 </div>
               </div>
           </section>
         </main>
       )}
 
-      {/* VISTA CORTE (INTERFAZ PREMIUM RESTAURADA) */}
+      {/* VISTA CORTE (CON DETALLE DE PRODUCTOS) */}
       {vista === 'corte' && (
         <main className="flex-1 p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-2xl mx-auto space-y-8">
+            {/* Header de Dinero con estética Premium */}
             <div className="bg-gradient-to-br from-emerald-500 to-teal-700 p-12 rounded-[3.5rem] text-white shadow-2xl flex justify-between items-center relative overflow-hidden group">
                 <div className="absolute -right-10 -bottom-10 text-[12rem] text-white/10 rotate-12 transition-transform group-hover:scale-110">💸</div>
                 <div className="z-10">
-                    <p className="text-[10px] font-black uppercase opacity-70 tracking-[0.3em] mb-3">Ingresos Totales del Día</p>
-                    <h2 className="text-6xl font-black tracking-tighter tabular-nums text-white shadow-sm">
-                        ${historial.reduce((acc,v)=>acc+parseFloat(v.total),0).toFixed(2)}
-                    </h2>
+                    <p className="text-[10px] font-black uppercase opacity-70 tracking-[0.3em] mb-3">Ingresos Totales Hoy</p>
+                    <h2 className="text-6xl font-black tracking-tighter tabular-nums">${historial.reduce((acc,v)=>acc+parseFloat(v.total),0).toFixed(2)}</h2>
                 </div>
                 <div className="z-10 bg-white/20 p-5 rounded-full backdrop-blur-md">
                     <span className="text-3xl">💹</span>
@@ -201,14 +200,28 @@ export default function VelascoPOS_Ultimate_Edition() {
             </div>
 
             <div className="space-y-4">
-                <h3 className="font-black text-slate-800 uppercase italic text-xl tracking-tighter px-2">Historial de Ventas</h3>
+                <h3 className="font-black text-slate-800 uppercase italic text-xl tracking-tighter px-2">Historial Detallado</h3>
                 {historial.map(v => (
-                    <div key={v.id} className="bg-white p-6 rounded-[2.5rem] shadow-sm border-l-8 border-emerald-500 flex justify-between items-center hover:shadow-md transition-all">
-                        <div className="flex flex-col">
-                            <span className="text-[10px] text-slate-400 font-bold uppercase mb-1">{new Date(v.fecha).toLocaleTimeString()}</span>
-                            <span className="text-[11px] text-slate-700 font-black uppercase">{v.items.length} Productos Vendidos</span>
+                    <div key={v.id} className="bg-white p-6 rounded-[2.5rem] shadow-sm border-l-8 border-emerald-500 hover:shadow-md transition-all">
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="flex flex-col">
+                                <span className="text-[10px] text-slate-400 font-bold uppercase mb-1">{new Date(v.fecha).toLocaleTimeString()}</span>
+                                <span className="text-xs font-black text-slate-800 uppercase tracking-tight">Venta #{v.id}</span>
+                            </div>
+                            <span className="font-black text-slate-900 text-xl tabular-nums">${parseFloat(v.total).toFixed(2)}</span>
                         </div>
-                        <span className="font-black text-slate-900 text-xl tabular-nums">${parseFloat(v.total).toFixed(2)}</span>
+                        
+                        {/* ESTA ES LA MAGIA: Detalle de productos vendidos */}
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                            <p className="text-[9px] font-black text-slate-400 uppercase mb-2 tracking-widest">Productos:</p>
+                            <div className="flex flex-wrap gap-2">
+                                {v.items.map((item, idx) => (
+                                    <span key={idx} className="bg-white px-3 py-1 rounded-lg border text-[10px] font-bold text-slate-700">
+                                        {item.cant}x {item.nombre}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 ))}
             </div>
@@ -220,20 +233,32 @@ export default function VelascoPOS_Ultimate_Edition() {
       {vista === 'inventario' && (
         <main className="flex-1 p-8 overflow-y-auto">
           <div className="max-w-xl mx-auto space-y-6">
-            <div className="bg-white p-10 rounded-[3rem] shadow-xl border-2 border-indigo-50">
-              <h2 className="font-black text-2xl mb-8 italic uppercase text-slate-800 tracking-tighter">Gestión de Productos</h2>
+            <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-indigo-50">
+              <h2 className="font-black text-2xl mb-8 italic uppercase text-slate-800 tracking-tighter text-center">Gestión de Productos</h2>
               <div className="space-y-4">
-                <input type="text" placeholder="Nombre del Producto" className="w-full bg-slate-50 p-5 rounded-2xl font-bold text-black border-2 border-transparent focus:border-indigo-500 outline-none" value={nuevoProd.nombre} onChange={e => setNuevoProd({...nuevoProd, nombre: e.target.value})}/>
+                <input type="text" placeholder="Nombre" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-indigo-500 outline-none" value={nuevoProd.nombre} onChange={e => setNuevoProd({...nuevoProd, nombre: e.target.value})}/>
                 <div className="grid grid-cols-2 gap-4">
-                    <input type="number" placeholder="Precio ($)" className="w-full bg-slate-50 p-5 rounded-2xl font-bold text-black outline-none" value={nuevoProd.precio} onChange={e => setNuevoProd({...nuevoProd, precio: e.target.value})}/>
-                    <input type="number" placeholder="Stock Inicial" className="w-full bg-slate-50 p-5 rounded-2xl font-bold text-black outline-none" value={nuevoProd.stock} onChange={e => setNuevoProd({...nuevoProd, stock: parseInt(e.target.value)})}/>
+                    <input type="number" placeholder="Precio" className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none" value={nuevoProd.precio} onChange={e => setNuevoProd({...nuevoProd, precio: e.target.value})}/>
+                    <input type="number" placeholder="Stock" className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none" value={nuevoProd.stock} onChange={e => setNuevoProd({...nuevoProd, stock: parseInt(e.target.value)})}/>
                 </div>
                 <button onClick={async () => {
                     const { data } = await supabase.from('productos').insert([nuevoProd]).select();
                     if (data) setCatalogo([...catalogo, data[0]]);
                     setNuevoProd({nombre:'', precio:'', icono:'📦', stock: 0});
-                }} className="w-full bg-slate-900 text-white font-black py-5 rounded-[1.5rem] shadow-xl hover:bg-slate-800 transition-all uppercase text-[10px] tracking-widest">Añadir al Inventario</button>
+                }} className="w-full bg-slate-900 text-white font-black py-5 rounded-[1.5rem] shadow-xl uppercase text-[10px] tracking-widest">Añadir al Sistema</button>
               </div>
+            </div>
+            {/* Lista rápida de eliminación */}
+            <div className="bg-white rounded-[2.5rem] shadow-sm border overflow-hidden">
+                {catalogo.map(p => (
+                    <div key={p.id} className="p-4 border-b flex justify-between items-center text-[10px] font-bold uppercase">
+                        <span>{p.nombre} ({p.stock} pz)</span>
+                        <button onClick={async () => {
+                            await supabase.from('productos').delete().eq('id', p.id);
+                            setCatalogo(catalogo.filter(x => x.id !== p.id));
+                        }} className="text-red-400">Eliminar</button>
+                    </div>
+                ))}
             </div>
           </div>
         </main>
