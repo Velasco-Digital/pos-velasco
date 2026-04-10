@@ -15,7 +15,7 @@ export default function VelascoPOS_Ultimate() {
   const [montado, setMontado] = useState(false);
   const [metodoPago, setMetodoPago] = useState('efectivo');
   const [ticketImpresion, setTicketImpresion] = useState({ items: [], total: 0, fecha: '', vendedor: '', metodo: '' });
-  const [nuevoProd, setNuevoProd] = useState({ nombre: '', precio: '', stock: 0, barcode: '' });
+  const [nuevoProd, setNuevoProd] = useState({ nombre: '', precio: '', stock: '', barcode: '' }); // Stock como string vacío
   const [inputBarras, setInputBarras] = useState('');
 
   useEffect(() => {
@@ -75,6 +75,7 @@ export default function VelascoPOS_Ultimate() {
     }
   };
 
+  // --- LÓGICA DE NEGOCIOS (DASHBOARD) ---
   const ventasHoy = historial.filter(v => new Date(v.fecha).toDateString() === new Date().toDateString());
   const totalHoy = ventasHoy.reduce((acc, v) => acc + parseFloat(v.total), 0);
   const totalEfectivo = ventasHoy.filter(v => v.metodo_pago === 'efectivo').reduce((acc, v) => acc + parseFloat(v.total), 0);
@@ -95,8 +96,8 @@ export default function VelascoPOS_Ultimate() {
         <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md text-center border-t-8 border-blue-600">
           <h1 className="text-blue-600 font-black italic text-4xl mb-2 tracking-tighter">VD POS</h1>
           <p className="text-slate-400 text-[10px] uppercase tracking-[0.3em] mb-8 font-bold">Velasco Digital Login</p>
-          <input type="email" placeholder="Usuario" className="w-full bg-slate-50 p-5 rounded-2xl mb-4 font-bold border-2 border-transparent focus:border-blue-500 outline-none" value={email} onChange={e => setEmail(e.target.value)} />
-          <input type="password" placeholder="Clave" className="w-full bg-slate-50 p-5 rounded-2xl mb-8 font-bold border-2 border-transparent focus:border-blue-500 outline-none" value={password} onChange={e => setPassword(e.target.value)} />
+          <input type="email" placeholder="Usuario" className="w-full bg-slate-50 p-5 rounded-2xl mb-4 font-bold outline-none" value={email} onChange={e => setEmail(e.target.value)} />
+          <input type="password" placeholder="Clave" className="w-full bg-slate-50 p-5 rounded-2xl mb-8 font-bold outline-none" value={password} onChange={e => setPassword(e.target.value)} />
           <button onClick={handleLogin} className="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-xl">ACCEDER</button>
         </div>
       </div>
@@ -268,14 +269,15 @@ export default function VelascoPOS_Ultimate() {
                 <input type="text" placeholder="Código de Barras" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none" value={nuevoProd.barcode} onChange={e => setNuevoProd({...nuevoProd, barcode: e.target.value})}/>
                 <div className="grid grid-cols-2 gap-4">
                     <input type="number" placeholder="Precio ($)" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none" value={nuevoProd.precio} onChange={e => setNuevoProd({...nuevoProd, precio: e.target.value})}/>
-                    <input type="number" placeholder="Stock Inicial" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none" value={nuevoProd.stock} onChange={e => setNuevoProd({...nuevoProd, stock: parseInt(e.target.value) || 0})}/>
+                    <input type="number" placeholder="Stock" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none" value={nuevoProd.stock} onChange={e => setNuevoProd({...nuevoProd, stock: e.target.value})}/>
                 </div>
                 <button onClick={async () => {
-                    const { data, error } = await supabase.from('productos').insert([nuevoProd]).select();
+                    const finalStock = parseInt(nuevoProd.stock) || 0;
+                    const { data, error } = await supabase.from('productos').insert([{...nuevoProd, stock: finalStock}]).select();
                     if (error) return alert("Error al guardar: " + error.message);
                     alert("PRODUCTO GUARDADO");
-                    setNuevoProd({nombre:'', precio:'', stock: 0, barcode: ''});
-                    fetchData(); // AJUSTE: Refresca catálogo tras añadir
+                    setNuevoProd({nombre:'', precio:'', stock: '', barcode: ''}); // Reinicia stock a vacío
+                    fetchData();
                 }} className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px]">Añadir al Catálogo</button>
               </div>
             </div>
@@ -286,11 +288,11 @@ export default function VelascoPOS_Ultimate() {
                     <div key={p.id} className="p-6 border-b border-slate-50 flex justify-between items-center gap-4">
                         <div className="flex-1">
                             <span className="font-black text-[10px] text-slate-800 uppercase block">{p.nombre}</span>
-                            <span className={`text-[9px] font-bold uppercase ${p.stock < 5 ? 'text-red-500' : 'text-slate-400'}`}>Stock: {p.stock}</span>
+                            <span className={`text-[9px] font-bold uppercase ${p.stock < 5 ? 'text-red-500' : 'text-slate-400'}`}>Cant: {p.stock}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <input type="number" className="w-16 bg-slate-50 p-2 rounded-lg font-black text-center text-xs border" defaultValue={p.stock} onBlur={(e) => {
-                                const val = parseInt(e.target.value);
+                            <input type="number" placeholder="Stock" className="w-20 bg-slate-50 p-2 rounded-lg font-black text-center text-xs border" defaultValue={p.stock} onBlur={(e) => {
+                                const val = parseInt(e.target.value) || 0;
                                 supabase.from('productos').update({ stock: val }).eq('id', p.id).then(()=>fetchData());
                             }}/>
                             <button onClick={async () => { if(confirm("¿Eliminar?")) { await supabase.from('productos').delete().eq('id', p.id); fetchData(); } }} className="text-red-500 font-black text-[9px] uppercase border px-3 py-2 rounded-lg">Borrar</button>
@@ -302,7 +304,7 @@ export default function VelascoPOS_Ultimate() {
         </main>
       )}
 
-      {/* CORTE DE CAJA DETALLADO */}
+      {/* CORTE */}
       {vista === 'corte' && rol === 'admin' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-2xl mx-auto space-y-6">
@@ -325,19 +327,14 @@ export default function VelascoPOS_Ultimate() {
                             <span className="text-slate-400">{new Date(v.fecha).toLocaleString()}</span>
                             <span className={`px-3 py-1 rounded-full ${v.metodo_pago === 'tarjeta' ? 'bg-indigo-100 text-indigo-600' : 'bg-blue-100 text-blue-600'}`}>{v.metodo_pago}</span>
                         </div>
-                        
-                        {/* DESCRIPCIÓN DE PRODUCTOS VENDIDOS */}
                         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                             <p className="text-[8px] font-black text-slate-400 uppercase mb-2 tracking-widest">Productos:</p>
                             <div className="flex flex-wrap gap-2">
                                 {v.items?.map((item, idx) => (
-                                    <span key={idx} className="bg-white px-2 py-1 rounded-lg border text-[9px] font-black text-slate-700">
-                                        {item.cant}x {item.nombre}
-                                    </span>
+                                    <span key={idx} className="bg-white px-2 py-1 rounded-lg border text-[9px] font-black text-slate-700">{item.cant}x {item.nombre}</span>
                                 ))}
                             </div>
                         </div>
-
                         <div className="flex justify-between items-center mt-2">
                             <span className="text-[10px] font-black text-slate-700">Vendedor: {v.vendedor}</span>
                             <span className="text-xl font-black tabular-nums">${parseFloat(v.total).toFixed(2)}</span>
