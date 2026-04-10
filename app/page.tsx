@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabase';
 
-export default function VelascoPOS_Universal_Edition() {
+export default function VelascoPOS_Final_Invisible() {
   const [session, setSession] = useState(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -84,26 +84,37 @@ export default function VelascoPOS_Universal_Edition() {
   return (
     <div className="bg-slate-50 h-screen flex flex-col font-sans overflow-hidden text-black">
       
-      {/* TICKET (Forzado a 80mm para cualquier impresora) */}
+      {/* 🛡️ CSS PARA TICKET INVISIBLE EN PANTALLA */}
       <style>{`
+        @media screen { #tk-ghost { display: none !important; } }
         @media print {
             body * { visibility: hidden !important; }
-            #tk, #tk * { visibility: visible !important; }
-            #tk { position: absolute; left: 0; top: 0; width: 80mm !important; padding: 5mm; font-family: monospace; color: black; }
+            #tk-ghost, #tk-ghost * { visibility: visible !important; }
+            #tk-ghost { 
+                position: absolute; left: 0; top: 0; width: 80mm !important; 
+                padding: 5mm; font-family: monospace; color: black !important; 
+                display: block !important; 
+            }
         }
       `}</style>
 
-      <div id="tk">
+      {/* TICKET FANTASMA (Invisible en pantalla) */}
+      <div id="tk-ghost">
           <center><h2 className="font-bold uppercase">Velasco Digital</h2><p>Punto de Venta</p>----------------------------</center>
-          {ticketImpresion.items.map((it, idx) => (
-            <div key={idx} className="flex justify-between text-xs my-1">
-                <span>{it.cant}x {it.nombre}</span>
-                <span>${(it.precio * it.cant).toFixed(2)}</span>
-            </div>
-          ))}
+          <div style={{margin: '10px 0'}}>
+            {ticketImpresion.items.map((it, idx) => (
+                <div key={idx} style={{display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px'}}>
+                    <span>{it.cant}x {it.nombre}</span>
+                    <span>${(it.precio * it.cant).toFixed(2)}</span>
+                </div>
+            ))}
+          </div>
           <p>----------------------------</p>
-          <div className="flex justify-between font-bold text-sm"><span>TOTAL:</span><span>${ticketImpresion.total.toFixed(2)}</span></div>
-          <center><p className="text-[9px] mt-4">{ticketImpresion.fecha}</p></center>
+          <div style={{display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '14px'}}>
+            <span>TOTAL:</span>
+            <span>${ticketImpresion.total.toFixed(2)}</span>
+          </div>
+          <center><p style={{fontSize: '9px', marginTop: '20px'}}>{ticketImpresion.fecha}</p></center>
       </div>
 
       {/* NAVBAR UNIVERSAL */}
@@ -117,15 +128,14 @@ export default function VelascoPOS_Universal_Edition() {
         <button onClick={() => supabase.auth.signOut().then(()=>window.location.reload())} className="hidden sm:block text-red-500 font-bold text-[9px] uppercase border border-red-500/20 px-4 py-2 rounded-xl">Salir</button>
       </nav>
 
-      {/* CONTENIDO RESPONSIVO */}
+      {/* CONTENIDO PRINCIPAL */}
       {vista === 'pos' && (
-        <main className="flex-1 flex flex-col md:flex-row overflow-hidden">
-          {/* GRILLA DE PRODUCTOS: 2 cols en cel, 4 en tablet, 6 en PC */}
+        <main className="flex-1 flex flex-col md:flex-row overflow-hidden animate-in fade-in">
           <section className="flex-1 p-4 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-3 content-start">
             {catalogo.map(p => (
               <button key={p.id} onClick={() => agregarAlCarrito(p)} className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100 hover:border-blue-500 active:scale-95 transition-all text-left flex flex-col justify-between h-36">
                 <div>
-                    <h3 className="font-black text-slate-800 uppercase text-[10px] leading-tight mb-2">{p.nombre}</h3>
+                    <h3 className="font-black text-slate-800 uppercase text-[10px] leading-tight mb-2 h-8 overflow-hidden">{p.nombre}</h3>
                     <p className="text-blue-600 font-black text-lg tracking-tighter">${parseFloat(p.precio).toFixed(2)}</p>
                 </div>
                 <div className="flex justify-between items-center">
@@ -135,7 +145,6 @@ export default function VelascoPOS_Universal_Edition() {
             ))}
           </section>
 
-          {/* CARRITO: Abajo en cel, Derecha en PC */}
           <section className="w-full md:w-80 lg:w-96 bg-white border-t md:border-t-0 md:border-l shadow-2xl flex flex-col h-[45vh] md:h-full">
             <div className="p-5 bg-slate-50 border-b flex justify-between font-black text-[10px] text-slate-400 uppercase tracking-[0.2em]">
                 <span>Carrito</span>
@@ -146,7 +155,7 @@ export default function VelascoPOS_Universal_Edition() {
                 <div key={i.id} className="flex justify-between items-start text-xs border-b border-dashed border-slate-200 pb-3">
                   <div className="flex flex-col flex-1 pr-4">
                     <span className="font-black text-slate-800 uppercase leading-tight">{i.nombre}</span>
-                    <span className="text-[10px] text-blue-500 font-bold">{i.cant} unidad(es)</span>
+                    <span className="text-[10px] text-blue-500 font-bold">{i.cant} pz</span>
                   </div>
                   <span className="font-black text-slate-900">${(i.precio * i.cant).toFixed(2)}</span>
                 </div>
@@ -166,9 +175,9 @@ export default function VelascoPOS_Universal_Edition() {
         </main>
       )}
 
-      {/* VISTA CORTE (GRADIENTE PREMIUM) */}
+      {/* VISTA CORTE (Con detalle completo) */}
       {vista === 'corte' && (
-        <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+        <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-2xl mx-auto space-y-6">
             <div className="bg-gradient-to-br from-emerald-600 to-teal-800 p-10 md:p-14 rounded-[3rem] text-white shadow-2xl relative overflow-hidden">
                 <div className="z-10 relative">
@@ -179,18 +188,18 @@ export default function VelascoPOS_Universal_Edition() {
                 </div>
                 <div className="absolute top-0 right-0 p-8 opacity-10 text-8xl font-black">$</div>
             </div>
-            <div className="space-y-3">
-                <h3 className="font-black text-slate-800 uppercase text-xs px-4 italic">Historial Reciente</h3>
+            <div className="space-y-4">
+                <h3 className="font-black text-slate-800 uppercase text-xs px-4 italic">Historial de Ventas</h3>
                 {historial.map(v => (
-                    <div key={v.id} className="bg-white p-5 rounded-[2rem] shadow-sm border border-slate-100">
+                    <div key={v.id} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
                         <div className="flex justify-between items-center mb-4">
                             <span className="text-[9px] text-slate-400 font-black uppercase">{new Date(v.fecha).toLocaleTimeString()}</span>
-                            <span className="font-black text-slate-900 text-xl">${parseFloat(v.total).toFixed(2)}</span>
+                            <span className="font-black text-slate-900 text-xl tabular-nums">${parseFloat(v.total).toFixed(2)}</span>
                         </div>
-                        <div className="flex flex-wrap gap-2">
+                        <div className="bg-slate-50 p-4 rounded-2xl flex flex-wrap gap-2 border border-slate-100">
                             {v.items.map((item, idx) => (
-                                <span key={idx} className="bg-slate-50 px-3 py-1 rounded-xl border border-slate-200 text-[9px] font-black text-slate-600 uppercase">
-                                    {item.cant} {item.nombre}
+                                <span key={idx} className="bg-white px-3 py-1 rounded-xl border border-slate-200 text-[9px] font-black text-slate-600 uppercase">
+                                    {item.cant}x {item.nombre}
                                 </span>
                             ))}
                         </div>
@@ -201,14 +210,14 @@ export default function VelascoPOS_Universal_Edition() {
         </main>
       )}
 
-      {/* VISTA INVENTARIO (LIMPIO) */}
+      {/* VISTA INVENTARIO */}
       {vista === 'inventario' && (
-        <main className="flex-1 p-4 md:p-8 overflow-y-auto">
+        <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-xl mx-auto space-y-6">
-            <div className="bg-white p-8 md:p-12 rounded-[3rem] shadow-xl border border-slate-100 text-center">
-              <h2 className="font-black text-2xl mb-8 italic uppercase text-slate-800 tracking-tighter">Inventario</h2>
+            <div className="bg-white p-8 md:p-12 rounded-[3rem] shadow-xl border border-slate-100">
+              <h2 className="font-black text-2xl mb-8 italic uppercase text-slate-800 tracking-tighter text-center">Gestión de Inventario</h2>
               <div className="space-y-4">
-                <input type="text" placeholder="Nombre del Producto" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-indigo-500 outline-none" value={nuevoProd.nombre} onChange={e => setNuevoProd({...nuevoProd, nombre: e.target.value})}/>
+                <input type="text" placeholder="Nombre" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-indigo-500 outline-none" value={nuevoProd.nombre} onChange={e => setNuevoProd({...nuevoProd, nombre: e.target.value})}/>
                 <div className="grid grid-cols-2 gap-4">
                     <input type="number" placeholder="Precio ($)" className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none" value={nuevoProd.precio} onChange={e => setNuevoProd({...nuevoProd, precio: e.target.value})}/>
                     <input type="number" placeholder="Stock Inicial" className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none" value={nuevoProd.stock} onChange={e => setNuevoProd({...nuevoProd, stock: parseInt(e.target.value)})}/>
@@ -217,7 +226,7 @@ export default function VelascoPOS_Universal_Edition() {
                     const { data } = await supabase.from('productos').insert([nuevoProd]).select();
                     if (data) setCatalogo([...catalogo, data[0]]);
                     setNuevoProd({nombre:'', precio:'', stock: 0});
-                }} className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px] tracking-[0.2em] transition-all active:scale-95">Añadir al Sistema</button>
+                }} className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all">Añadir al Sistema</button>
               </div>
             </div>
             <div className="bg-white rounded-[2.5rem] shadow-sm border overflow-hidden">
