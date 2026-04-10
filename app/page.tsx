@@ -76,14 +76,15 @@ export default function VelascoPOS_Ultimate() {
     }
   };
 
-  // --- LÓGICA DE REPORTES Y GRÁFICA ---
+  // --- LÓGICA DE NEGOCIOS ---
   const ventasFiltradas = historial.filter(v => new Date(v.fecha).toISOString().split('T')[0] === fechaConsulta);
   const totalCorte = ventasFiltradas.reduce((acc, v) => acc + parseFloat(v.total), 0);
   const efectivoCorte = ventasFiltradas.filter(v => v.metodo_pago === 'efectivo').reduce((acc, v) => acc + parseFloat(v.total), 0);
   const tarjetaCorte = ventasFiltradas.filter(v => v.metodo_pago === 'tarjeta').reduce((acc, v) => acc + parseFloat(v.total), 0);
   const productosBajos = catalogo.filter(p => p.stock < 5);
 
-  // NUEVA LÓGICA: Gráfica por Día (Últimos 7 días)
+  // GRÁFICA POR DÍA MEJORADA
+  const hoyStr = new Date().toDateString();
   const ultimos7Dias = [...Array(7)].map((_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - i);
@@ -94,10 +95,10 @@ export default function VelascoPOS_Ultimate() {
     const totalDia = historial
         .filter(v => new Date(v.fecha).toDateString() === dia)
         .reduce((acc, v) => acc + parseFloat(v.total), 0);
-    return { dia: dia.split(' ')[0], total: totalDia }; // Solo inicial del día
+    return { dia: dia.split(' ')[0], total: totalDia, esHoy: dia === hoyStr };
   });
 
-  const maxVenta = Math.max(...dataGrafica.map(d => d.total), 1); // Evitar división por cero
+  const maxVenta = Math.max(...dataGrafica.map(d => d.total), 1);
 
   const conteoProd = {};
   historial.forEach(v => {
@@ -173,7 +174,7 @@ export default function VelascoPOS_Ultimate() {
         <button onClick={() => supabase.auth.signOut().then(()=>window.location.reload())} className="text-red-500 font-bold text-[9px] uppercase">Salir</button>
       </nav>
 
-      {/* DASHBOARD MEJORADO */}
+      {/* DASHBOARD CON GRÁFICA FUNCIONAL */}
       {vista === 'dashboard' && rol === 'admin' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-4xl mx-auto space-y-6">
@@ -193,23 +194,23 @@ export default function VelascoPOS_Ultimate() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* GRÁFICA SEMANAL DINÁMICA */}
+                {/* GRÁFICA CON NÚMEROS REALES */}
                 <div className="bg-white p-8 rounded-[3rem] shadow-sm border">
-                    <h3 className="text-xs font-black uppercase mb-6 italic text-slate-800 tracking-tighter">Ventas de la Semana</h3>
-                    <div className="flex items-end justify-between h-48 gap-3">
+                    <h3 className="text-xs font-black uppercase mb-8 italic text-slate-800 tracking-tighter">Ventas de la Semana</h3>
+                    <div className="flex items-end justify-between h-56 gap-3 pb-2">
                         {dataGrafica.map((d, i) => (
-                            <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
+                            <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+                                {/* Número arriba de la barra */}
+                                <span className={`text-[7px] font-black ${d.total > 0 ? 'text-blue-600' : 'text-slate-300'}`}>
+                                    ${d.total.toFixed(0)}
+                                </span>
                                 <div 
-                                    className="bg-blue-600 w-full rounded-t-xl transition-all duration-1000" 
-                                    style={{ height: `${(d.total / maxVenta) * 100}%`, minHeight: d.total > 0 ? '5%' : '0%' }}
+                                    className={`w-full rounded-t-xl transition-all duration-700 ${d.esHoy ? 'bg-blue-600 shadow-lg shadow-blue-500/30' : 'bg-slate-200 group-hover:bg-blue-300'}`} 
+                                    style={{ height: `${(d.total / maxVenta) * 75}%`, minHeight: d.total > 0 ? '4px' : '2px' }}
                                 ></div>
-                                <span className="text-[8px] font-black text-slate-400 uppercase">{d.dia}</span>
+                                <span className={`text-[8px] font-black uppercase mt-2 ${d.esHoy ? 'text-blue-600' : 'text-slate-400'}`}>{d.dia}</span>
                             </div>
                         ))}
-                    </div>
-                    <div className="mt-4 pt-4 border-t flex justify-between">
-                        <span className="text-[9px] font-black text-slate-400 uppercase">Flujo Semanal</span>
-                        <span className="text-[9px] font-black text-blue-600 uppercase">Max: ${maxVenta.toFixed(0)}</span>
                     </div>
                 </div>
 
@@ -229,7 +230,7 @@ export default function VelascoPOS_Ultimate() {
         </main>
       )}
 
-      {/* CAJA */}
+      {/* VISTAS RESTANTES (CAJA, STOCK, CORTE - SE MANTIENEN IGUAL) */}
       {vista === 'pos' && (
         <main className="flex-1 flex flex-col md:flex-row overflow-hidden animate-in fade-in">
           <section className="flex-1 p-4 overflow-y-auto">
@@ -249,7 +250,7 @@ export default function VelascoPOS_Ultimate() {
             </div>
           </section>
 
-          <section className="w-full md:w-80 lg:w-96 bg-white border-l shadow-2xl flex flex-col h-[45vh] md:h-full">
+          <section className="w-full md:w-80 lg:w-96 bg-white border-l shadow-2xl flex flex-col h-[45vh] md:h-full no-print">
             <div className="p-5 bg-slate-50 border-b text-[10px] font-black text-slate-400 uppercase tracking-widest">Carrito de Venta</div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {carrito.map(i => (
@@ -281,7 +282,6 @@ export default function VelascoPOS_Ultimate() {
         </main>
       )}
 
-      {/* STOCK / INVENTARIO */}
       {vista === 'inventario' && rol === 'admin' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in text-black">
           <div className="max-w-3xl mx-auto space-y-6">
@@ -304,7 +304,6 @@ export default function VelascoPOS_Ultimate() {
                 }} className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px]">Añadir al Catálogo</button>
               </div>
             </div>
-
             <div className="bg-white rounded-[2.5rem] shadow-sm border overflow-hidden">
                 <div className="p-4 bg-slate-50 border-b text-[10px] font-black text-slate-400 uppercase tracking-widest">Existencias Actuales</div>
                 {catalogo.map(p => (
@@ -327,7 +326,6 @@ export default function VelascoPOS_Ultimate() {
         </main>
       )}
 
-      {/* CORTE */}
       {vista === 'corte' && rol === 'admin' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-2xl mx-auto space-y-6">
@@ -353,7 +351,6 @@ export default function VelascoPOS_Ultimate() {
             </div>
 
             <div className="space-y-4">
-                <h3 className="font-black text-slate-800 uppercase text-xs px-4 italic">Ventas de este día ({ventasFiltradas.length})</h3>
                 {ventasFiltradas.map(v => (
                     <div key={v.id} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col gap-3">
                         <div className="flex justify-between items-center text-[9px] font-black uppercase">
