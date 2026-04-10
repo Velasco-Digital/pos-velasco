@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './supabase';
 
-export default function VelascoPOS_Final_Invisible() {
+export default function VelascoPOS_Inventory_Master() {
   const [session, setSession] = useState(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -40,6 +40,12 @@ export default function VelascoPOS_Final_Invisible() {
     const ex = carrito.find(i => i.id === p.id);
     if (ex) setCarrito(carrito.map(i => i.id === p.id ? {...i, cant: i.cant + 1} : i));
     else setCarrito([...carrito, {...p, cant: 1}]);
+  };
+
+  const actualizarStockManual = async (id, nuevoStock) => {
+    const { error } = await supabase.from('productos').update({ stock: parseInt(nuevoStock) }).eq('id', id);
+    if (error) alert("Error al actualizar stock");
+    else fetchData();
   };
 
   const finalizarVenta = async (imprimir = false) => {
@@ -84,21 +90,17 @@ export default function VelascoPOS_Final_Invisible() {
   return (
     <div className="bg-slate-50 h-screen flex flex-col font-sans overflow-hidden text-black">
       
-      {/* 🛡️ CSS PARA TICKET INVISIBLE EN PANTALLA */}
+      {/* 🛡️ CSS PARA TICKET INVISIBLE */}
       <style>{`
         @media screen { #tk-ghost { display: none !important; } }
         @media print {
             body * { visibility: hidden !important; }
             #tk-ghost, #tk-ghost * { visibility: visible !important; }
-            #tk-ghost { 
-                position: absolute; left: 0; top: 0; width: 80mm !important; 
-                padding: 5mm; font-family: monospace; color: black !important; 
-                display: block !important; 
-            }
+            #tk-ghost { position: absolute; left: 0; top: 0; width: 80mm !important; padding: 5mm; font-family: monospace; color: black !important; display: block !important; }
         }
       `}</style>
 
-      {/* TICKET FANTASMA (Invisible en pantalla) */}
+      {/* TICKET FANTASMA */}
       <div id="tk-ghost">
           <center><h2 className="font-bold uppercase">Velasco Digital</h2><p>Punto de Venta</p>----------------------------</center>
           <div style={{margin: '10px 0'}}>
@@ -111,13 +113,12 @@ export default function VelascoPOS_Final_Invisible() {
           </div>
           <p>----------------------------</p>
           <div style={{display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '14px'}}>
-            <span>TOTAL:</span>
-            <span>${ticketImpresion.total.toFixed(2)}</span>
+            <span>TOTAL:</span><span>${ticketImpresion.total.toFixed(2)}</span>
           </div>
           <center><p style={{fontSize: '9px', marginTop: '20px'}}>{ticketImpresion.fecha}</p></center>
       </div>
 
-      {/* NAVBAR UNIVERSAL */}
+      {/* NAVBAR */}
       <nav className="bg-slate-900 p-3 flex flex-col sm:flex-row justify-between items-center shadow-xl border-b border-blue-600/30 no-print gap-3">
         <h1 className="text-blue-500 font-black italic text-xl tracking-tighter">VD POS</h1>
         <div className="flex gap-1 bg-slate-800 p-1 rounded-2xl w-full sm:w-auto">
@@ -125,10 +126,9 @@ export default function VelascoPOS_Final_Invisible() {
             <button onClick={() => setVista('inventario')} className={`flex-1 sm:px-6 py-2 rounded-xl text-[10px] font-black tracking-widest ${vista === 'inventario' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>STOCK</button>
             <button onClick={() => setVista('corte')} className={`flex-1 sm:px-6 py-2 rounded-xl text-[10px] font-black tracking-widest ${vista === 'corte' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>CORTE</button>
         </div>
-        <button onClick={() => supabase.auth.signOut().then(()=>window.location.reload())} className="hidden sm:block text-red-500 font-bold text-[9px] uppercase border border-red-500/20 px-4 py-2 rounded-xl">Salir</button>
       </nav>
 
-      {/* CONTENIDO PRINCIPAL */}
+      {/* VISTA CAJA */}
       {vista === 'pos' && (
         <main className="flex-1 flex flex-col md:flex-row overflow-hidden animate-in fade-in">
           <section className="flex-1 p-4 overflow-y-auto grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-3 content-start">
@@ -175,7 +175,7 @@ export default function VelascoPOS_Final_Invisible() {
         </main>
       )}
 
-      {/* VISTA CORTE (Con detalle completo) */}
+      {/* VISTA CORTE */}
       {vista === 'corte' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-2xl mx-auto space-y-6">
@@ -186,7 +186,6 @@ export default function VelascoPOS_Final_Invisible() {
                         ${historial.reduce((acc,v)=>acc+parseFloat(v.total),0).toFixed(2)}
                     </h2>
                 </div>
-                <div className="absolute top-0 right-0 p-8 opacity-10 text-8xl font-black">$</div>
             </div>
             <div className="space-y-4">
                 <h3 className="font-black text-slate-800 uppercase text-xs px-4 italic">Historial de Ventas</h3>
@@ -196,12 +195,8 @@ export default function VelascoPOS_Final_Invisible() {
                             <span className="text-[9px] text-slate-400 font-black uppercase">{new Date(v.fecha).toLocaleTimeString()}</span>
                             <span className="font-black text-slate-900 text-xl tabular-nums">${parseFloat(v.total).toFixed(2)}</span>
                         </div>
-                        <div className="bg-slate-50 p-4 rounded-2xl flex flex-wrap gap-2 border border-slate-100">
-                            {v.items.map((item, idx) => (
-                                <span key={idx} className="bg-white px-3 py-1 rounded-xl border border-slate-200 text-[9px] font-black text-slate-600 uppercase">
-                                    {item.cant}x {item.nombre}
-                                </span>
-                            ))}
+                        <div className="bg-slate-50 p-4 rounded-2xl flex flex-wrap gap-2 border border-slate-100 text-[9px] font-black text-slate-600 uppercase">
+                            {v.items.map((item, idx) => (<span key={idx}>{item.cant}x {item.nombre}</span>))}
                         </div>
                     </div>
                 ))}
@@ -210,10 +205,11 @@ export default function VelascoPOS_Final_Invisible() {
         </main>
       )}
 
-      {/* VISTA INVENTARIO */}
+      {/* VISTA INVENTARIO (MODIFICADA PARA AJUSTAR STOCK) */}
       {vista === 'inventario' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-xl mx-auto space-y-6">
+            {/* Formulario de Nuevo Producto */}
             <div className="bg-white p-8 md:p-12 rounded-[3rem] shadow-xl border border-slate-100">
               <h2 className="font-black text-2xl mb-8 italic uppercase text-slate-800 tracking-tighter text-center">Gestión de Inventario</h2>
               <div className="space-y-4">
@@ -229,14 +225,33 @@ export default function VelascoPOS_Final_Invisible() {
                 }} className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px] tracking-widest active:scale-95 transition-all">Añadir al Sistema</button>
               </div>
             </div>
+
+            {/* LISTA DE AJUSTE DE STOCK */}
             <div className="bg-white rounded-[2.5rem] shadow-sm border overflow-hidden">
+                <div className="p-4 bg-slate-50 border-b text-[10px] font-black text-slate-400 uppercase tracking-widest">Ajuste Manual de Existencias</div>
                 {catalogo.map(p => (
-                    <div key={p.id} className="p-4 border-b border-slate-50 flex justify-between items-center text-[10px] font-black uppercase">
-                        <span>{p.nombre} ({p.stock} pz)</span>
-                        <button onClick={async () => {
-                            await supabase.from('productos').delete().eq('id', p.id);
-                            setCatalogo(catalogo.filter(x => x.id !== p.id));
-                        }} className="text-red-500 hover:underline">Eliminar</button>
+                    <div key={p.id} className="p-6 border-b border-slate-50 flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div className="flex-1">
+                            <span className="font-black text-[10px] text-slate-800 uppercase block">{p.nombre}</span>
+                            <span className="text-[9px] text-slate-400 font-bold uppercase">Precio actual: ${parseFloat(p.precio).toFixed(2)}</span>
+                        </div>
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <input 
+                                type="number" 
+                                className="w-20 bg-slate-50 p-2 rounded-lg font-black text-center text-xs border"
+                                defaultValue={p.stock}
+                                onBlur={(e) => actualizarStockManual(p.id, e.target.value)}
+                            />
+                            <button 
+                                onClick={async () => {
+                                    if(confirm("¿Eliminar este producto permanentemente?")) {
+                                        await supabase.from('productos').delete().eq('id', p.id);
+                                        fetchData();
+                                    }
+                                }} 
+                                className="text-red-500 font-black text-[9px] uppercase px-3 py-2 border border-red-100 rounded-lg"
+                            >Eliminar</button>
+                        </div>
                     </div>
                 ))}
             </div>
