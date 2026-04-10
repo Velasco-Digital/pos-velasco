@@ -1,4 +1,5 @@
-// @ts-nocheck"use client";
+// @ts-nocheck
+"use client";
 
 import React, { useState, useEffect } from 'react';
 
@@ -34,6 +35,7 @@ export default function VelascoPOS_Final_Fixed() {
     }
   }, []);
 
+  // 2. Guardado automático (solo si ya cargó)
   useEffect(() => {
     if (montado) {
       localStorage.setItem('vd_carrito', JSON.stringify(carrito));
@@ -42,8 +44,15 @@ export default function VelascoPOS_Final_Fixed() {
     }
   }, [carrito, catalogo, historial, montado]);
 
-  // Si no está montado, mostramos una pantalla de carga para evitar el error rojo
-  if (!montado) return <div className="bg-slate-900 h-screen flex items-center justify-center text-blue-500 font-black">VELASCO DIGITAL...</div>;
+  // Si no está montado (cargando), mostramos pantalla de bienvenida para evitar el error rojo
+  if (!montado) {
+    return (
+      <div className="bg-slate-900 h-screen flex flex-col items-center justify-center">
+        <h1 className="text-blue-500 font-black italic text-4xl animate-pulse">VELASCO DIGITAL</h1>
+        <p className="text-white/50 text-xs mt-4 uppercase tracking-[0.3em]">Cargando Sistema...</p>
+      </div>
+    );
+  }
 
   const agregarAlCarrito = (p) => {
     const ex = carrito.find(i => i.id === p.id);
@@ -101,6 +110,7 @@ export default function VelascoPOS_Final_Fixed() {
         }
       `}</style>
 
+      {/* TICKET DE IMPRESIÓN */}
       <div id="printable-ticket" className="bg-white p-4">
         <div style={{ fontFamily: 'monospace', width: '80mm', fontSize: '12px', color: 'black' }}>
           <center>
@@ -128,6 +138,7 @@ export default function VelascoPOS_Final_Fixed() {
         </div>
       </div>
 
+      {/* NAVBAR */}
       <nav className="bg-slate-900 p-3 flex justify-between items-center shadow-xl border-b-2 border-blue-600 no-print">
         <div className="flex items-center gap-4 px-2">
           <h1 className="text-blue-500 font-black italic text-xl">VD <span className="text-white font-light uppercase">Pos</span></h1>
@@ -139,6 +150,7 @@ export default function VelascoPOS_Final_Fixed() {
         </div>
       </nav>
 
+      {/* VISTA: CAJA */}
       {vista === 'pos' && (
         <main className="flex-1 flex overflow-hidden animate-in fade-in">
           <section className="flex-[3] p-4 overflow-y-auto grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 content-start">
@@ -181,6 +193,7 @@ export default function VelascoPOS_Final_Fixed() {
         </main>
       )}
 
+      {/* VISTA: INVENTARIO */}
       {vista === 'inventario' && (
         <main className="flex-1 p-6 overflow-y-auto">
           <div className="max-w-2xl mx-auto space-y-6">
@@ -230,6 +243,7 @@ export default function VelascoPOS_Final_Fixed() {
         </main>
       )}
 
+      {/* VISTA: CORTE */}
       {vista === 'corte' && (
         <main className="flex-1 p-6 overflow-y-auto animate-in fade-in">
           <div className="max-w-2xl mx-auto space-y-6">
