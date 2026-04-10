@@ -13,7 +13,7 @@ export default function VelascoPOS_Ultimate() {
   const [catalogo, setCatalogo] = useState([]);
   const [historial, setHistorial] = useState([]);
   const [montado, setMontado] = useState(false);
-  const [ticketImpresion, setTicketImpresion] = useState({ items: [], total: 0, fecha: '' });
+  const [ticketImpresion, setTicketImpresion] = useState({ items: [], total: 0, fecha: '', vendedor: '' });
   const [nuevoProd, setNuevoProd] = useState({ nombre: '', precio: '', stock: 0, barcode: '' });
   const [inputBarras, setInputBarras] = useState('');
 
@@ -22,7 +22,6 @@ export default function VelascoPOS_Ultimate() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if(session) {
-        // Simulación de Rol por correo (Para el demo, si es tu correo es Admin)
         if(session.user.email === 'admin@velasco.com') setRol('admin'); 
         fetchData();
       }
@@ -53,13 +52,21 @@ export default function VelascoPOS_Ultimate() {
     if (carrito.length === 0) return;
     const subtotal = carrito.reduce((a,b)=>a+(b.precio*b.cant), 0);
     const totalVenta = subtotal * 1.16;
-    const { error } = await supabase.from('ventas').insert([{ items: carrito, total: totalVenta }]).select();
+    
+    // AJUSTE 1: Guardamos el correo del vendedor en la DB
+    const { error } = await supabase.from('ventas').insert([{ 
+        items: carrito, 
+        total: totalVenta, 
+        vendedor: session.user.email 
+    }]).select();
+    
     if (error) return alert("Error de red");
     for (const item of carrito) {
         await supabase.rpc('decrement_stock', { row_id: item.id, amount: item.cant });
     }
     if (imprimir) {
-        setTicketImpresion({ items: [...carrito], total: totalVenta, fecha: new Date().toLocaleString() });
+        // AJUSTE 2: Pasamos el vendedor al estado del ticket
+        setTicketImpresion({ items: [...carrito], total: totalVenta, fecha: new Date().toLocaleString(), vendedor: session.user.email });
         setTimeout(() => { window.print(); setCarrito([]); fetchData(); }, 500);
     } else {
         alert("VENTA EXITOSA");
@@ -68,7 +75,6 @@ export default function VelascoPOS_Ultimate() {
     }
   };
 
-  // --- ANALÍTICAS PARA EL DASHBOARD ---
   const ventasHoy = historial.filter(v => new Date(v.fecha).toDateString() === new Date().toDateString());
   const totalHoy = ventasHoy.reduce((acc, v) => acc + parseFloat(v.total), 0);
   const productosBajos = catalogo.filter(p => p.stock < 5);
@@ -76,7 +82,7 @@ export default function VelascoPOS_Ultimate() {
   if (!session && montado) {
     return (
       <div className="bg-slate-900 h-screen flex items-center justify-center p-6 text-black">
-        <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md text-center border-t-8 border-blue-600">
+        <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-md text-center border-t-8 border-blue-600">
           <h1 className="text-blue-600 font-black italic text-4xl mb-2 tracking-tighter">VD POS</h1>
           <p className="text-slate-400 text-[10px] uppercase tracking-[0.3em] mb-8 font-bold">Inicia Sesión</p>
           <input type="email" placeholder="Usuario" className="w-full bg-slate-50 p-5 rounded-2xl mb-4 font-bold border-2 border-transparent focus:border-blue-500 outline-none" value={email} onChange={e => setEmail(e.target.value)} />
@@ -101,9 +107,14 @@ export default function VelascoPOS_Ultimate() {
         }
       `}</style>
 
-      {/* TICKET INVISIBLE */}
+      {/* TICKET CON PERSONALIZACIÓN DE CAJERO */}
       <div id="tk-gh">
-          <center><h2 className="font-bold">VELASCO DIGITAL</h2><p>Punto de Venta</p>----------------------------</center>
+          <center>
+            <h2 className="font-bold">VELASCO DIGITAL</h2>
+            <p>Punto de Venta</p>
+            <p style={{fontSize: '9px'}}>Atendió: {ticketImpresion.vendedor}</p>
+            <p>----------------------------</p>
+          </center>
           {ticketImpresion.items.map((it, idx) => (
             <div key={idx} style={{display:'flex', justifyContent:'space-between', fontSize:'12px'}}>
                 <span>{it.cant}x {it.nombre}</span><span>${(it.precio*it.cant).toFixed(2)}</span>
@@ -114,13 +125,11 @@ export default function VelascoPOS_Ultimate() {
           <center><p style={{fontSize:'9px', marginTop:'15px'}}>{ticketImpresion.fecha}</p></center>
       </div>
 
-      {/* NAVBAR DINÁMICO POR ROL */}
       <nav className="bg-slate-900 p-3 flex flex-col sm:flex-row justify-between items-center shadow-xl border-b border-blue-600/30 no-print gap-3">
         <div className="flex flex-col items-start">
             <h1 className="text-blue-500 font-black italic text-xl">VD POS</h1>
-            <span className="text-[8px] text-white/50 uppercase font-bold">Sesión: {rol}</span>
+            <span className="text-[8px] text-white/50 uppercase font-bold">Sesión: {rol} ({session.user.email})</span>
         </div>
-        
         <div className="flex gap-1 bg-slate-800 p-1 rounded-2xl w-full sm:w-auto overflow-x-auto">
             {rol === 'admin' && (
                 <button onClick={() => setVista('dashboard')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'dashboard' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>DASHBOARD</button>
@@ -136,7 +145,7 @@ export default function VelascoPOS_Ultimate() {
         <button onClick={() => supabase.auth.signOut().then(()=>window.location.reload())} className="text-red-500 font-bold text-[9px] uppercase">Salir</button>
       </nav>
 
-      {/* VISTA DASHBOARD (ADMIN ONLY) */}
+      {/* DASHBOARD (ADMIN ONLY) */}
       {vista === 'dashboard' && rol === 'admin' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-4xl mx-auto space-y-6">
@@ -154,8 +163,6 @@ export default function VelascoPOS_Ultimate() {
                     <h2 className="text-3xl font-black text-emerald-600">{ventasHoy.length}</h2>
                 </div>
             </div>
-
-            {/* GRÁFICA DE VENTAS (Puro CSS) */}
             <div className="bg-white p-8 rounded-[3rem] shadow-sm border">
                 <h3 className="text-xs font-black uppercase mb-6 italic text-slate-800">Flujo Semanal (Últimas Ventas)</h3>
                 <div className="flex items-end justify-between h-48 gap-2">
@@ -167,8 +174,6 @@ export default function VelascoPOS_Ultimate() {
                     ))}
                 </div>
             </div>
-
-            {/* LISTA DE REABASTECIMIENTO */}
             <div className="bg-red-50 p-6 rounded-[2rem] border border-red-100">
                 <h3 className="text-[10px] font-black text-red-600 uppercase mb-4">⚠️ Urgente: Reabastecer</h3>
                 <div className="space-y-2">
@@ -184,7 +189,7 @@ export default function VelascoPOS_Ultimate() {
         </main>
       )}
 
-      {/* VISTA CAJA (CAJERO Y ADMIN) */}
+      {/* CAJA */}
       {vista === 'pos' && (
         <main className="flex-1 flex flex-col md:flex-row overflow-hidden animate-in fade-in">
           <section className="flex-1 p-4 overflow-y-auto">
@@ -231,7 +236,7 @@ export default function VelascoPOS_Ultimate() {
         </main>
       )}
 
-      {/* VISTA INVENTARIO (ADMIN ONLY) */}
+      {/* INVENTARIO */}
       {vista === 'inventario' && rol === 'admin' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-xl mx-auto space-y-6">
@@ -251,7 +256,6 @@ export default function VelascoPOS_Ultimate() {
                 }} className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px] active:scale-95 transition-all">Añadir al Catálogo</button>
               </div>
             </div>
-
             <div className="bg-white rounded-[2.5rem] shadow-sm border overflow-hidden">
                 <div className="p-4 bg-slate-50 border-b text-[10px] font-black text-slate-400 uppercase tracking-widest">Control de Existencias</div>
                 {catalogo.map(p => (
@@ -274,7 +278,7 @@ export default function VelascoPOS_Ultimate() {
         </main>
       )}
 
-      {/* VISTA CORTE (ADMIN ONLY) */}
+      {/* VISTA CORTE CON AUDITORÍA */}
       {vista === 'corte' && rol === 'admin' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-2xl mx-auto space-y-6">
@@ -289,7 +293,10 @@ export default function VelascoPOS_Ultimate() {
                 {historial.map(v => (
                     <div key={v.id} className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-slate-100">
                         <div className="flex justify-between items-center mb-4 text-[9px] text-slate-400 font-black uppercase">
-                            <span>{new Date(v.fecha).toLocaleString()}</span>
+                            <div className="flex flex-col">
+                                <span>{new Date(v.fecha).toLocaleString()}</span>
+                                <span className="text-blue-600 font-black mt-1">Vendedor: {v.vendedor || 'S/N'}</span>
+                            </div>
                             <span className="text-slate-900 text-xl font-black tabular-nums">${parseFloat(v.total).toFixed(2)}</span>
                         </div>
                         <div className="bg-slate-50 p-4 rounded-2xl flex flex-wrap gap-2 text-[9px] font-black text-slate-600 uppercase border border-slate-100">
