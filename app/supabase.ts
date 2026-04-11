@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
 
-// Ahora el código buscará las llaves que configuraste en Vercel
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
+// Usamos || '' para que Vercel no marque error si la variable falta un segundo
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
+// Solo creamos el cliente si las llaves existen de verdad
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
