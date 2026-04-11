@@ -19,6 +19,12 @@ export default function VelascoPOS_Ultimate() {
   const [nuevoProd, setNuevoProd] = useState({ nombre: '', precio: '', stock: '', barcode: '' });
   const [inputBarras, setInputBarras] = useState('');
 
+  // --- NUEVOS ESTADOS PARA PROVEEDORES ---
+  const [proveedores, setProveedores] = useState([]);
+  const [compras, setCompras] = useState([]);
+  const [nuevoProv, setNuevoProv] = useState({ nombre: '', contacto: '', categoria: '' });
+  const [nuevaCompra, setNuevaCompra] = useState({ proveedor_id: '', monto_total: '', detalles: '' });
+
   useEffect(() => {
     setMontado(true);
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -33,8 +39,16 @@ export default function VelascoPOS_Ultimate() {
   const fetchData = async () => {
     const { data: catData } = await supabase.from('productos').select('*').order('id', { ascending: true });
     if (catData) setCatalogo(catData);
+    
     const { data: histData } = await supabase.from('ventas').select('*').order('id', { ascending: false }).limit(500);
     if (histData) setHistorial(histData);
+
+    // Fetch de proveedores y gastos
+    const { data: provData } = await supabase.from('proveedores').select('*');
+    if (provData) setProveedores(provData);
+
+    const { data: compData } = await supabase.from('compras_proveedores').select('*, proveedores(nombre)').order('id', { ascending: false });
+    if (compData) setCompras(compData);
   };
 
   const handleLogin = async () => {
@@ -79,11 +93,16 @@ export default function VelascoPOS_Ultimate() {
   // --- LÓGICA DE NEGOCIOS ---
   const ventasFiltradas = historial.filter(v => new Date(v.fecha).toISOString().split('T')[0] === fechaConsulta);
   const totalCorte = ventasFiltradas.reduce((acc, v) => acc + parseFloat(v.total), 0);
+  
+  // Cálculo de Gastos del día para el Dashboard
+  const gastosFiltrados = compras.filter(c => new Date(c.fecha).toISOString().split('T')[0] === fechaConsulta);
+  const totalGastos = gastosFiltrados.reduce((acc, c) => acc + parseFloat(c.monto_total), 0);
+  const utilidadNeta = totalCorte - totalGastos;
+
   const efectivoCorte = ventasFiltradas.filter(v => v.metodo_pago === 'efectivo').reduce((acc, v) => acc + parseFloat(v.total), 0);
   const tarjetaCorte = ventasFiltradas.filter(v => v.metodo_pago === 'tarjeta').reduce((acc, v) => acc + parseFloat(v.total), 0);
   const productosBajos = catalogo.filter(p => p.stock < 5);
 
-  // GRÁFICA POR DÍA MEJORADA
   const hoyStr = new Date().toDateString();
   const ultimos7Dias = [...Array(7)].map((_, i) => {
     const d = new Date();
@@ -167,6 +186,7 @@ export default function VelascoPOS_Ultimate() {
             {rol === 'admin' && (
                 <>
                 <button onClick={() => setVista('inventario')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'inventario' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>STOCK</button>
+                <button onClick={() => setVista('proveedores')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'proveedores' ? 'bg-orange-600 text-white' : 'text-slate-400'}`}>PROVEEDORES</button>
                 <button onClick={() => setVista('corte')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'corte' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>CORTE</button>
                 </>
             )}
@@ -174,33 +194,35 @@ export default function VelascoPOS_Ultimate() {
         <button onClick={() => supabase.auth.signOut().then(()=>window.location.reload())} className="text-red-500 font-bold text-[9px] uppercase">Salir</button>
       </nav>
 
-      {/* DASHBOARD CON GRÁFICA FUNCIONAL */}
+      {/* DASHBOARD ACTUALIZADO CON UTILIDAD */}
       {vista === 'dashboard' && rol === 'admin' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-4xl mx-auto space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <button onClick={() => setVista('corte')} className="bg-white p-6 rounded-[2rem] shadow-sm border border-blue-100 text-left">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-blue-100">
                     <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Ventas Hoy</p>
                     <h2 className="text-2xl font-black text-blue-600">${totalCorte.toFixed(2)}</h2>
-                </button>
-                <button onClick={() => setVista('inventario')} className="bg-white p-6 rounded-[2rem] shadow-sm border border-red-100 text-left">
+                </div>
+                <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-orange-100">
+                    <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Pagos Prov.</p>
+                    <h2 className="text-2xl font-black text-orange-600">-${totalGastos.toFixed(2)}</h2>
+                </div>
+                <div className={`p-6 rounded-[2rem] shadow-sm border ${utilidadNeta >= 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
+                    <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Utilidad Neta</p>
+                    <h2 className={`text-2xl font-black ${utilidadNeta >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>${utilidadNeta.toFixed(2)}</h2>
+                </div>
+                <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-red-100">
                     <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Alertas Stock</p>
                     <h2 className="text-2xl font-black text-red-600">{productosBajos.length} Prod.</h2>
-                </button>
-                <button onClick={() => setVista('corte')} className="bg-white p-6 rounded-[2rem] shadow-sm border border-emerald-100 text-left">
-                    <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Transacciones</p>
-                    <h2 className="text-2xl font-black text-emerald-600">{ventasFiltradas.length} hoy</h2>
-                </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* GRÁFICA CON NÚMEROS REALES */}
                 <div className="bg-white p-8 rounded-[3rem] shadow-sm border">
                     <h3 className="text-xs font-black uppercase mb-8 italic text-slate-800 tracking-tighter">Ventas de la Semana</h3>
                     <div className="flex items-end justify-between h-56 gap-3 pb-2">
                         {dataGrafica.map((d, i) => (
                             <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
-                                {/* Número arriba de la barra */}
                                 <span className={`text-[7px] font-black ${d.total > 0 ? 'text-blue-600' : 'text-slate-300'}`}>
                                     ${d.total.toFixed(0)}
                                 </span>
@@ -230,7 +252,7 @@ export default function VelascoPOS_Ultimate() {
         </main>
       )}
 
-      {/* VISTAS RESTANTES (CAJA, STOCK, CORTE - SE MANTIENEN IGUAL) */}
+      {/* POS VIEW */}
       {vista === 'pos' && (
         <main className="flex-1 flex flex-col md:flex-row overflow-hidden animate-in fade-in">
           <section className="flex-1 p-4 overflow-y-auto">
@@ -282,6 +304,69 @@ export default function VelascoPOS_Ultimate() {
         </main>
       )}
 
+      {/* NUEVA VISTA: PROVEEDORES Y GASTOS */}
+      {vista === 'proveedores' && rol === 'admin' && (
+        <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in slide-in-from-bottom-10">
+          <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Registro de Gastos */}
+            <div className="bg-white p-8 rounded-[3rem] shadow-xl border-t-8 border-orange-500">
+                <h2 className="font-black text-xl mb-6 italic uppercase text-slate-800">Registrar Pago a Proveedor</h2>
+                <div className="space-y-4">
+                    <select className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-orange-500" value={nuevaCompra.proveedor_id} onChange={e => setNuevaCompra({...nuevaCompra, proveedor_id: e.target.value})}>
+                        <option value="">Seleccionar Proveedor</option>
+                        {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                    </select>
+                    <input type="number" placeholder="Monto Total ($)" className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-orange-500" value={nuevaCompra.monto_total} onChange={e => setNuevaCompra({...nuevaCompra, monto_total: e.target.value})}/>
+                    <textarea placeholder="Detalles (Ej: 3 cajas de refresco)" className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-orange-500 h-24" value={nuevaCompra.detalles} onChange={e => setNuevaCompra({...nuevaCompra, detalles: e.target.value})}></textarea>
+                    <button onClick={async () => {
+                        if(!nuevaCompra.proveedor_id || !nuevaCompra.monto_total) return alert("Llena los campos, viejo.");
+                        const { error } = await supabase.from('compras_proveedores').insert([nuevaCompra]);
+                        if(error) return alert("Error: " + error.message);
+                        alert("GASTO REGISTRADO");
+                        setNuevaCompra({proveedor_id:'', monto_total:'', detalles:''});
+                        fetchData();
+                    }} className="w-full bg-orange-600 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px]">Guardar Gasto</button>
+                </div>
+            </div>
+
+            {/* Nuevo Proveedor */}
+            <div className="space-y-6">
+                <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-100">
+                    <h2 className="font-black text-xl mb-6 italic uppercase text-slate-800">Añadir Nuevo Proveedor</h2>
+                    <div className="space-y-4">
+                        <input type="text" placeholder="Nombre del Proveedor" className="w-full bg-slate-50 p-4 rounded-xl font-bold outline-none" value={nuevoProv.nombre} onChange={e => setNuevoProv({...nuevoProv, nombre: e.target.value})}/>
+                        <input type="text" placeholder="Contacto (Opcional)" className="w-full bg-slate-50 p-4 rounded-xl font-bold outline-none" value={nuevoProv.contacto} onChange={e => setNuevoProv({...nuevoProv, contacto: e.target.value})}/>
+                        <button onClick={async () => {
+                            if(!nuevoProv.nombre) return alert("Falta el nombre.");
+                            await supabase.from('proveedores').insert([nuevoProv]);
+                            alert("PROVEEDOR AÑADIDO");
+                            setNuevoProv({nombre:'', contacto:'', categoria:''});
+                            fetchData();
+                        }} className="w-full bg-slate-900 text-white font-black py-4 rounded-xl uppercase text-[9px]">Registrar Proveedor</button>
+                    </div>
+                </div>
+
+                {/* Lista de últimos gastos */}
+                <div className="bg-white rounded-[2.5rem] shadow-sm border overflow-hidden">
+                    <div className="p-4 bg-orange-50 border-b text-[10px] font-black text-orange-600 uppercase tracking-widest">Últimos Pagos Realizados</div>
+                    <div className="max-h-64 overflow-y-auto">
+                        {compras.map(c => (
+                            <div key={c.id} className="p-4 border-b border-slate-50 flex justify-between items-center">
+                                <div>
+                                    <span className="font-black text-[10px] text-slate-800 uppercase block">{c.proveedores?.nombre}</span>
+                                    <span className="text-[8px] text-slate-400 font-bold">{new Date(c.fecha).toLocaleDateString()}</span>
+                                </div>
+                                <span className="text-orange-600 font-black text-sm">-${parseFloat(c.monto_total).toFixed(2)}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+          </div>
+        </main>
+      )}
+
+      {/* STOCK VIEW */}
       {vista === 'inventario' && rol === 'admin' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in text-black">
           <div className="max-w-3xl mx-auto space-y-6">
@@ -326,6 +411,7 @@ export default function VelascoPOS_Ultimate() {
         </main>
       )}
 
+      {/* CORTE VIEW */}
       {vista === 'corte' && rol === 'admin' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-2xl mx-auto space-y-6">
