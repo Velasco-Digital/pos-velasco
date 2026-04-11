@@ -14,7 +14,10 @@ export default function VelascoPOS_Ultimate() {
   const [historial, setHistorial] = useState([]);
   const [montado, setMontado] = useState(false);
   const [metodoPago, setMetodoPago] = useState('efectivo');
-  const [fechaConsulta, setFechaConsulta] = useState(new Date().toISOString().split('T')[0]);
+  
+  // CORRECCIÓN 1: Fecha inicial en hora local (Jalisco)
+  const [fechaConsulta, setFechaConsulta] = useState(new Date().toLocaleDateString('en-CA'));
+  
   const [ticketImpresion, setTicketImpresion] = useState({ items: [], total: 0, fecha: '', vendedor: '', metodo: '' });
   const [nuevoProd, setNuevoProd] = useState({ nombre: '', precio: '', stock: '', barcode: '' });
   const [inputBarras, setInputBarras] = useState('');
@@ -43,7 +46,6 @@ export default function VelascoPOS_Ultimate() {
     const { data: histData } = await supabase.from('ventas').select('*').order('id', { ascending: false }).limit(500);
     if (histData) setHistorial(histData);
 
-    // Fetch de proveedores y gastos
     const { data: provData } = await supabase.from('proveedores').select('*');
     if (provData) setProveedores(provData);
 
@@ -90,12 +92,22 @@ export default function VelascoPOS_Ultimate() {
     }
   };
 
-  // --- LÓGICA DE NEGOCIOS ---
-  const ventasFiltradas = historial.filter(v => new Date(v.fecha).toISOString().split('T')[0] === fechaConsulta);
+  // --- LÓGICA DE NEGOCIOS CON HORA LOCAL ---
+  
+  // CORRECCIÓN 2: Filtrado de Ventas por día local
+  const ventasFiltradas = historial.filter(v => {
+    const d = new Date(v.fecha);
+    return d.toLocaleDateString('en-CA') === fechaConsulta;
+  });
+  
   const totalCorte = ventasFiltradas.reduce((acc, v) => acc + parseFloat(v.total), 0);
   
-  // Cálculo de Gastos del día para el Dashboard
-  const gastosFiltrados = compras.filter(c => new Date(c.fecha).toISOString().split('T')[0] === fechaConsulta);
+  // CORRECCIÓN 3: Filtrado de Gastos por día local
+  const gastosFiltrados = compras.filter(c => {
+    const d = new Date(c.fecha);
+    return d.toLocaleDateString('en-CA') === fechaConsulta;
+  });
+  
   const totalGastos = gastosFiltrados.reduce((acc, c) => acc + parseFloat(c.monto_total), 0);
   const utilidadNeta = totalCorte - totalGastos;
 
@@ -194,7 +206,7 @@ export default function VelascoPOS_Ultimate() {
         <button onClick={() => supabase.auth.signOut().then(()=>window.location.reload())} className="text-red-500 font-bold text-[9px] uppercase">Salir</button>
       </nav>
 
-      {/* DASHBOARD ACTUALIZADO CON UTILIDAD */}
+      {/* DASHBOARD */}
       {vista === 'dashboard' && rol === 'admin' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-4xl mx-auto space-y-6">
@@ -304,11 +316,10 @@ export default function VelascoPOS_Ultimate() {
         </main>
       )}
 
-      {/* NUEVA VISTA: PROVEEDORES Y GASTOS */}
+      {/* PROVEEDORES */}
       {vista === 'proveedores' && rol === 'admin' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in slide-in-from-bottom-10">
           <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Registro de Gastos */}
             <div className="bg-white p-8 rounded-[3rem] shadow-xl border-t-8 border-orange-500">
                 <h2 className="font-black text-xl mb-6 italic uppercase text-slate-800">Registrar Pago a Proveedor</h2>
                 <div className="space-y-4">
@@ -329,7 +340,6 @@ export default function VelascoPOS_Ultimate() {
                 </div>
             </div>
 
-            {/* Nuevo Proveedor */}
             <div className="space-y-6">
                 <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-100">
                     <h2 className="font-black text-xl mb-6 italic uppercase text-slate-800">Añadir Nuevo Proveedor</h2>
@@ -346,7 +356,6 @@ export default function VelascoPOS_Ultimate() {
                     </div>
                 </div>
 
-                {/* Lista de últimos gastos */}
                 <div className="bg-white rounded-[2.5rem] shadow-sm border overflow-hidden">
                     <div className="p-4 bg-orange-50 border-b text-[10px] font-black text-orange-600 uppercase tracking-widest">Últimos Pagos Realizados</div>
                     <div className="max-h-64 overflow-y-auto">
@@ -464,3 +473,5 @@ export default function VelascoPOS_Ultimate() {
     </div>
   );
 }
+
+ Listo viejo, ya te pasé el código completo para que lo integres, porfa, intégralo bien y pásamelo para copiar y pegar y que todo esté bien ya estructurado como lo tenemos. porfa viejo.
