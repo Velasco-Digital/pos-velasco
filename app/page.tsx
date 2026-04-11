@@ -15,14 +15,13 @@ export default function VelascoPOS_Ultimate() {
   const [montado, setMontado] = useState(false);
   const [metodoPago, setMetodoPago] = useState('efectivo');
   
-  // CORRECCIÓN 1: Fecha inicial en hora local (Jalisco)
+  // FECHA LOCAL CALIBRADA
   const [fechaConsulta, setFechaConsulta] = useState(new Date().toLocaleDateString('en-CA'));
   
   const [ticketImpresion, setTicketImpresion] = useState({ items: [], total: 0, fecha: '', vendedor: '', metodo: '' });
   const [nuevoProd, setNuevoProd] = useState({ nombre: '', precio: '', stock: '', barcode: '' });
   const [inputBarras, setInputBarras] = useState('');
 
-  // --- NUEVOS ESTADOS PARA PROVEEDORES ---
   const [proveedores, setProveedores] = useState([]);
   const [compras, setCompras] = useState([]);
   const [nuevoProv, setNuevoProv] = useState({ nombre: '', contacto: '', categoria: '' });
@@ -92,9 +91,12 @@ export default function VelascoPOS_Ultimate() {
     }
   };
 
-  // --- LÓGICA DE NEGOCIOS CON HORA LOCAL ---
-  
-  // CORRECCIÓN 2: Filtrado de Ventas por día local
+  // --- LÓGICA DE FILTRADO HÍBRIDO (Nombre + Barras) ---
+  const catalogoFiltrado = catalogo.filter(p => 
+    p.nombre.toLowerCase().includes(inputBarras.toLowerCase()) || 
+    p.barcode?.includes(inputBarras)
+  );
+
   const ventasFiltradas = historial.filter(v => {
     const d = new Date(v.fecha);
     return d.toLocaleDateString('en-CA') === fechaConsulta;
@@ -102,7 +104,6 @@ export default function VelascoPOS_Ultimate() {
   
   const totalCorte = ventasFiltradas.reduce((acc, v) => acc + parseFloat(v.total), 0);
   
-  // CORRECCIÓN 3: Filtrado de Gastos por día local
   const gastosFiltrados = compras.filter(c => {
     const d = new Date(c.fecha);
     return d.toLocaleDateString('en-CA') === fechaConsulta;
@@ -206,8 +207,7 @@ export default function VelascoPOS_Ultimate() {
         <button onClick={() => supabase.auth.signOut().then(()=>window.location.reload())} className="text-red-500 font-bold text-[9px] uppercase">Salir</button>
       </nav>
 
-      {/* DASHBOARD */}
-      {vista === 'dashboard' && rol === 'admin' && (
+      {vista === 'dashboard' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-4xl mx-auto space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -264,16 +264,29 @@ export default function VelascoPOS_Ultimate() {
         </main>
       )}
 
-      {/* POS VIEW */}
       {vista === 'pos' && (
         <main className="flex-1 flex flex-col md:flex-row overflow-hidden animate-in fade-in">
           <section className="flex-1 p-4 overflow-y-auto">
-            <form onSubmit={(e) => { e.preventDefault(); const p = catalogo.find(x => x.barcode === inputBarras); if(p) agregarAlCarrito(p); setInputBarras(''); }} className="mb-4">
-                <input type="text" placeholder="Escanear Producto..." className="w-full bg-white p-4 rounded-2xl shadow-sm border border-blue-100 font-bold text-xs outline-none" value={inputBarras} onChange={(e) => setInputBarras(e.target.value)} autoFocus />
+            {/* BUSCADOR HÍBRIDO (NOMBRE O BARRAS) */}
+            <form onSubmit={(e) => { 
+                e.preventDefault(); 
+                const p = catalogo.find(x => x.barcode === inputBarras); 
+                if(p) { agregarAlCarrito(p); setInputBarras(''); }
+            }} className="mb-4 relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                <input 
+                    type="text" 
+                    placeholder="Buscar por nombre o escanear código..." 
+                    className="w-full bg-white p-4 pl-10 rounded-2xl shadow-sm border border-blue-100 font-bold text-xs outline-none focus:border-blue-500 transition-all" 
+                    value={inputBarras} 
+                    onChange={(e) => setInputBarras(e.target.value)} 
+                    autoFocus 
+                />
             </form>
+            
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-3 content-start">
-                {catalogo.map(p => (
-                <button key={p.id} onClick={() => agregarAlCarrito(p)} className={`bg-white p-5 rounded-[2rem] shadow-sm border text-left flex flex-col justify-between h-36 ${p.stock < 5 ? 'border-red-200 bg-red-50/20' : 'border-slate-100'}`}>
+                {catalogoFiltrado.map(p => (
+                <button key={p.id} onClick={() => agregarAlCarrito(p)} className={`bg-white p-5 rounded-[2rem] shadow-sm border text-left flex flex-col justify-between h-36 transform transition-all hover:scale-105 active:scale-95 ${p.stock < 5 ? 'border-red-200 bg-red-50/20' : 'border-slate-100'}`}>
                     <div>
                         <h3 className="font-black text-slate-800 uppercase text-[10px] leading-tight mb-2 h-8 overflow-hidden">{p.nombre}</h3>
                         <p className="text-blue-600 font-black text-lg tracking-tighter">${parseFloat(p.precio).toFixed(2)}</p>
@@ -281,6 +294,11 @@ export default function VelascoPOS_Ultimate() {
                     <span className={`text-[8px] font-black px-2 py-1 rounded-lg w-fit ${p.stock < 5 ? 'bg-red-600 text-white animate-pulse' : 'bg-green-100 text-green-600'}`}>STOCK: {p.stock}</span>
                 </button>
                 ))}
+                {catalogoFiltrado.length === 0 && (
+                    <div className="col-span-full py-20 text-center">
+                        <p className="text-slate-400 font-bold text-xs uppercase tracking-widest">No se encontraron productos, viejo.</p>
+                    </div>
+                )}
             </div>
           </section>
 
@@ -317,7 +335,7 @@ export default function VelascoPOS_Ultimate() {
       )}
 
       {/* PROVEEDORES */}
-      {vista === 'proveedores' && rol === 'admin' && (
+      {vista === 'proveedores' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in slide-in-from-bottom-10">
           <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="bg-white p-8 rounded-[3rem] shadow-xl border-t-8 border-orange-500">
@@ -376,7 +394,7 @@ export default function VelascoPOS_Ultimate() {
       )}
 
       {/* STOCK VIEW */}
-      {vista === 'inventario' && rol === 'admin' && (
+      {vista === 'inventario' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in text-black">
           <div className="max-w-3xl mx-auto space-y-6">
             <div className="bg-white p-8 md:p-12 rounded-[3rem] shadow-xl border border-slate-100">
@@ -421,7 +439,7 @@ export default function VelascoPOS_Ultimate() {
       )}
 
       {/* CORTE VIEW */}
-      {vista === 'corte' && rol === 'admin' && (
+      {vista === 'corte' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-2xl mx-auto space-y-6">
             <div className="bg-white p-6 rounded-[2.5rem] shadow-xl border border-blue-500/20 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -473,5 +491,3 @@ export default function VelascoPOS_Ultimate() {
     </div>
   );
 }
-
- 
