@@ -474,4 +474,4 @@ export default function VelascoPOS_Ultimate() {
   );
 }
 
- Listo viejo, ya te pasé el código completo para que lo integres, porfa, intégralo bien y pásamelo para copiar y pegar y que todo esté bien ya estructurado como lo tenemos. porfa viejo.
+ 
