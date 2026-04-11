@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = 'https://dkpcmtkbzjpqhlgopzgi.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRrcGNtdGtiempwcWhsZ29wemdpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU3NzQzNDksImV4cCI6MjA5MTM1MDM0OX0.2Y4-ShoteVLdiRk5C1reNSxg9UISIDnUO7xGwl-Ac2s'
+// Ahora el código buscará las llaves que configuraste en Vercel
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL as string;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
