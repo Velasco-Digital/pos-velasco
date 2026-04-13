@@ -1,9 +1,9 @@
 // @ts-nocheck
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from './supabase';
+import { supabase } from '../lib/supabase';
 // --- 1. IMPORTACIÓN DEL SENSOR ---
-import { useUserRole } from '@/hooks/useUserRole'; 
+import { useUserRole } from '../hooks/useUserRole'; 
 
 export default function VelascoPOS_Ultimate() {
   // --- 2. ACTIVACIÓN DEL SENSOR ---
@@ -63,11 +63,20 @@ export default function VelascoPOS_Ultimate() {
     if (compData) setCompras(compData);
   };
 
-  const handleLogin = async () => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) showMsg("Credenciales incorrectas, viejo.", "error");
-    else window.location.reload();
+    const handleLogin = async () => {
+    alert("¡Botón presionado!"); // Para saber si el botón responde
+    
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    
+    if (error) {
+      alert("Error de Supabase: " + error.message);
+      showMsg("Credenciales incorrectas", "error");
+    } else {
+      alert("¡Entraste! Recargando...");
+      window.location.reload();
+    }
   };
+
 
   const agregarAlCarrito = (p) => {
     if(p.stock <= 0) return showMsg("¡Sin existencias!", "error");
