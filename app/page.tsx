@@ -2,10 +2,14 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from './supabase';
+// --- 1. IMPORTACIÓN DEL SENSOR ---
+import { useUserRole } from '@/hooks/useUserRole'; 
 
 export default function VelascoPOS_Ultimate() {
+  // --- 2. ACTIVACIÓN DEL SENSOR ---
+  const { rol, loading: cargandoPerfil } = useUserRole();
+  
   const [session, setSession] = useState(null);
-  const [rol, setRol] = useState('cajero');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [vista, setVista] = useState('pos');
@@ -26,7 +30,7 @@ export default function VelascoPOS_Ultimate() {
   const [nuevoProv, setNuevoProv] = useState({ nombre: '', contacto: '', categoria: '' });
   const [nuevaCompra, setNuevaCompra] = useState({ proveedor_id: '', monto_total: '', detalles: '' });
 
-  // --- NUEVO ESTADO PARA NOTIFICACIONES ESTÉTICAS ---
+  // --- NOTIFICACIONES ---
   const [toast, setToast] = useState({ visible: false, msg: '', tipo: 'success' });
 
   useEffect(() => {
@@ -34,7 +38,7 @@ export default function VelascoPOS_Ultimate() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if(session) {
-        if(session.user.email === 'admin@velasco.com') setRol('admin'); 
+        // Ya no necesitamos checar el email aquí, el hook lo hace por nosotros
         fetchData();
       }
     });
@@ -143,6 +147,15 @@ export default function VelascoPOS_Ultimate() {
   });
   const top5 = Object.entries(conteoProd).sort((a,b) => b[1] - a[1]).slice(0, 5);
 
+  // --- PANTALLA DE CARGA PARA SEGURIDAD ---
+  if (cargandoPerfil && session) {
+    return (
+      <div className="h-screen bg-slate-900 flex items-center justify-center text-white font-black italic">
+        VERIFICANDO PERFIL...
+      </div>
+    );
+  }
+
   if (!session && montado) {
     return (
       <div className="bg-slate-900 h-screen flex items-center justify-center p-6 text-black">
@@ -173,7 +186,7 @@ export default function VelascoPOS_Ultimate() {
         .toast-active { transform: translateY(0); opacity: 1; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
       `}</style>
 
-      {/* NOTIFICACIÓN ESTILO IPHONE (TOAST) */}
+      {/* TOAST IPHONE STYLE */}
       {toast.visible && (
         <div className="fixed top-6 left-0 right-0 z-[5000] flex justify-center px-6 pointer-events-none">
             <div className={`toast-active flex items-center gap-3 px-6 py-4 rounded-[2rem] shadow-2xl backdrop-blur-xl border ${toast.tipo === 'success' ? 'bg-white/80 border-emerald-100' : 'bg-red-50/90 border-red-100'}`}>
@@ -187,7 +200,7 @@ export default function VelascoPOS_Ultimate() {
         </div>
       )}
 
-      {/* TICKET */}
+      {/* TICKET IMPRESIÓN */}
       <div id="tk-gh">
           <center>
             <h2 className="font-bold">VELASCO DIGITAL</h2>
@@ -211,10 +224,13 @@ export default function VelascoPOS_Ultimate() {
             <span className="text-[8px] text-white/50 uppercase font-bold">Sesión: {rol}</span>
         </div>
         <div className="flex gap-1 bg-slate-800 p-1 rounded-2xl w-full sm:w-auto overflow-x-auto">
+            {/* TRUCO DE DESAPARICIÓN: SOLO ADMIN */}
             {rol === 'admin' && (
                 <button onClick={() => setVista('dashboard')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'dashboard' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>DASHBOARD</button>
             )}
             <button onClick={() => setVista('pos')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'pos' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>CAJA</button>
+            
+            {/* TRUCO DE DESAPARICIÓN: SOLO ADMIN */}
             {rol === 'admin' && (
                 <>
                 <button onClick={() => setVista('inventario')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'inventario' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>STOCK</button>
@@ -226,6 +242,7 @@ export default function VelascoPOS_Ultimate() {
         <button onClick={() => supabase.auth.signOut().then(()=>window.location.reload())} className="text-red-500 font-bold text-[9px] uppercase">Salir</button>
       </nav>
 
+      {/* VISTA: DASHBOARD */}
       {vista === 'dashboard' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-4xl mx-auto space-y-6">
@@ -283,6 +300,7 @@ export default function VelascoPOS_Ultimate() {
         </main>
       )}
 
+      {/* VISTA: POS (CAJA) */}
       {vista === 'pos' && (
         <main className="flex-1 flex flex-col md:flex-row overflow-hidden animate-in fade-in">
           <section className="flex-1 p-4 overflow-y-auto">
@@ -347,6 +365,7 @@ export default function VelascoPOS_Ultimate() {
         </main>
       )}
 
+      {/* VISTA: PROVEEDORES */}
       {vista === 'proveedores' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in slide-in-from-bottom-10">
           <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -405,6 +424,7 @@ export default function VelascoPOS_Ultimate() {
         </main>
       )}
 
+      {/* VISTA: INVENTARIO */}
       {vista === 'inventario' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in text-black">
           <div className="max-w-3xl mx-auto space-y-6">
@@ -458,6 +478,7 @@ export default function VelascoPOS_Ultimate() {
         </main>
       )}
 
+      {/* VISTA: CORTE */}
       {vista === 'corte' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-2xl mx-auto space-y-6">
