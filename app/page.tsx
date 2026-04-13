@@ -2,12 +2,11 @@
 "use client";
 import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-// --- 1. IMPORTACIÓN DEL SENSOR ---
 import { useUserRole } from '../hooks/useUserRole'; 
 
 export default function VelascoPOS_Ultimate() {
-  // --- 2. ACTIVACIÓN DEL SENSOR ---
-  const { rol, loading: cargandoPerfil } = useUserRole();
+  // 1. Sensor activado con el perfil completo para obtener el empresa_id
+  const { rol, profile, loading: cargandoPerfil } = useUserRole();
   
   const [session, setSession] = useState(null);
   const [email, setEmail] = useState('');
@@ -24,59 +23,70 @@ export default function VelascoPOS_Ultimate() {
   const [nuevoProd, setNuevoProd] = useState({ nombre: '', precio: '', stock: '', barcode: '' });
   const [inputBarras, setInputBarras] = useState('');
 
-  // --- ESTADOS PARA PROVEEDORES ---
   const [proveedores, setProveedores] = useState([]);
   const [compras, setCompras] = useState([]);
   const [nuevoProv, setNuevoProv] = useState({ nombre: '', contacto: '', categoria: '' });
   const [nuevaCompra, setNuevaCompra] = useState({ proveedor_id: '', monto_total: '', detalles: '' });
 
-  // --- NOTIFICACIONES ---
   const [toast, setToast] = useState({ visible: false, msg: '', tipo: 'success' });
 
+  // 2. Control de sesión y carga de datos automática al detectar el perfil
   useEffect(() => {
     setMontado(true);
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if(session) {
-        // Ya no necesitamos checar el email aquí, el hook lo hace por nosotros
-        fetchData();
-      }
     });
   }, []);
+
+  useEffect(() => {
+    if (session && profile?.empresa_id) {
+      fetchData();
+    }
+  }, [session, profile]);
 
   const showMsg = (msg, tipo = 'success') => {
     setToast({ visible: true, msg, tipo });
     setTimeout(() => setToast({ visible: false, msg: '', tipo: 'success' }), 2500);
   };
 
+  // 3. Consultas filtradas por empresa_id (Cada quien ve lo suyo)
   const fetchData = async () => {
-    const { data: catData } = await supabase.from('productos').select('*').order('id', { ascending: true });
+    if (!profile?.empresa_id) return;
+
+    const { data: catData } = await supabase.from('productos')
+      .select('*')
+      .eq('empresa_id', profile.empresa_id)
+      .order('id', { ascending: true });
     if (catData) setCatalogo(catData);
     
-    const { data: histData } = await supabase.from('ventas').select('*').order('id', { ascending: false }).limit(500);
+    const { data: histData } = await supabase.from('ventas')
+      .select('*')
+      .eq('empresa_id', profile.empresa_id)
+      .order('id', { ascending: false }).limit(500);
     if (histData) setHistorial(histData);
 
-    const { data: provData } = await supabase.from('proveedores').select('*');
+    const { data: provData } = await supabase.from('proveedores')
+      .select('*')
+      .eq('empresa_id', profile.empresa_id);
     if (provData) setProveedores(provData);
 
-    const { data: compData } = await supabase.from('compras_proveedores').select('*, proveedores(nombre)').order('id', { ascending: false });
+    const { data: compData } = await supabase.from('compras_proveedores')
+      .select('*, proveedores(nombre)')
+      .eq('empresa_id', profile.empresa_id)
+      .order('id', { ascending: false });
     if (compData) setCompras(compData);
   };
 
-    const handleLogin = async () => {
-    alert("¡Botón presionado!"); // Para saber si el botón responde
-    
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    
+  // 4. Login limpio (Sin alertas intrusivas)
+  const handleLogin = async () => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      alert("Error de Supabase: " + error.message);
       showMsg("Credenciales incorrectas", "error");
     } else {
-      alert("¡Entraste! Recargando...");
+      // Recarga silenciosa
       window.location.reload();
     }
   };
-
 
   const agregarAlCarrito = (p) => {
     if(p.stock <= 0) return showMsg("¡Sin existencias!", "error");
@@ -85,8 +95,9 @@ export default function VelascoPOS_Ultimate() {
     else setCarrito([...carrito, {...p, cant: 1}]);
   };
 
+  // 5. Ventas con etiqueta de empresa
   const finalizarVenta = async (imprimir = false) => {
-    if (carrito.length === 0) return;
+    if (carrito.length === 0 || !profile?.empresa_id) return;
     const subtotal = carrito.reduce((a,b)=>a+(b.precio*b.cant), 0);
     const totalVenta = subtotal * 1.16;
     
@@ -94,8 +105,9 @@ export default function VelascoPOS_Ultimate() {
         items: carrito, 
         total: totalVenta, 
         vendedor: session.user.email,
-        metodo_pago: metodoPago 
-    }]).select();
+        metodo_pago: metodoPago,
+        empresa_id: profile.empresa_id // <--- Etiqueta de dueño
+    }]);
     
     if (error) return showMsg("Error de red", "error");
     for (const item of carrito) {
@@ -111,6 +123,7 @@ export default function VelascoPOS_Ultimate() {
     }
   };
 
+  // Filtros de interfaz (Calculados en el cliente)
   const catalogoFiltrado = catalogo.filter(p => 
     p.nombre.toLowerCase().includes(inputBarras.toLowerCase()) || 
     p.barcode?.includes(inputBarras)
@@ -156,30 +169,24 @@ export default function VelascoPOS_Ultimate() {
   });
   const top5 = Object.entries(conteoProd).sort((a,b) => b[1] - a[1]).slice(0, 5);
 
-  // --- PANTALLA DE CARGA PARA SEGURIDAD ---
-  if (cargandoPerfil && session) {
-    return (
-      <div className="h-screen bg-slate-900 flex items-center justify-center text-white font-black italic">
-        VERIFICANDO PERFIL...
-      </div>
-    );
+  // 6. Pantalla de carga profesional (Solo fondo, sin textos feos)
+  if ((cargandoPerfil || !montado) && session) {
+    return <div className="h-screen bg-slate-900" />; 
   }
 
   if (!session && montado) {
     return (
-      <div className="bg-slate-900 h-screen flex items-center justify-center p-6 text-black">
-        <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md text-center border-t-8 border-blue-600">
+      <div className="bg-slate-900 h-screen flex items-center justify-center p-6">
+        <div className="bg-white p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md text-center border-t-8 border-blue-600 animate-in zoom-in-95 duration-300">
           <h1 className="text-blue-600 font-black italic text-4xl mb-2 tracking-tighter">VD POS</h1>
           <p className="text-slate-400 text-[10px] uppercase tracking-[0.3em] mb-8 font-bold">Velasco Digital Login</p>
-          <input type="email" placeholder="Usuario" className="w-full bg-slate-50 p-5 rounded-2xl mb-4 font-bold outline-none" value={email} onChange={e => setEmail(e.target.value)} />
-          <input type="password" placeholder="Clave" className="w-full bg-slate-50 p-5 rounded-2xl mb-8 font-bold outline-none" value={password} onChange={e => setPassword(e.target.value)} />
-          <button onClick={handleLogin} className="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-xl">ACCEDER</button>
+          <input type="email" placeholder="Usuario" className="w-full bg-slate-50 p-5 rounded-2xl mb-4 font-bold outline-none text-black" value={email} onChange={e => setEmail(e.target.value)} />
+          <input type="password" placeholder="Clave" className="w-full bg-slate-50 p-5 rounded-2xl mb-8 font-bold outline-none text-black" value={password} onChange={e => setPassword(e.target.value)} />
+          <button onClick={handleLogin} className="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-xl hover:bg-blue-700 transition-colors">ACCEDER</button>
         </div>
       </div>
     );
   }
-
-  if (!montado) return null;
 
   return (
     <div className="bg-slate-50 h-screen flex flex-col font-sans overflow-hidden text-black">
@@ -195,7 +202,6 @@ export default function VelascoPOS_Ultimate() {
         .toast-active { transform: translateY(0); opacity: 1; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
       `}</style>
 
-      {/* TOAST IPHONE STYLE */}
       {toast.visible && (
         <div className="fixed top-6 left-0 right-0 z-[5000] flex justify-center px-6 pointer-events-none">
             <div className={`toast-active flex items-center gap-3 px-6 py-4 rounded-[2rem] shadow-2xl backdrop-blur-xl border ${toast.tipo === 'success' ? 'bg-white/80 border-emerald-100' : 'bg-red-50/90 border-red-100'}`}>
@@ -209,7 +215,6 @@ export default function VelascoPOS_Ultimate() {
         </div>
       )}
 
-      {/* TICKET IMPRESIÓN */}
       <div id="tk-gh">
           <center>
             <h2 className="font-bold">VELASCO DIGITAL</h2>
@@ -233,13 +238,11 @@ export default function VelascoPOS_Ultimate() {
             <span className="text-[8px] text-white/50 uppercase font-bold">Sesión: {rol}</span>
         </div>
         <div className="flex gap-1 bg-slate-800 p-1 rounded-2xl w-full sm:w-auto overflow-x-auto">
-            {/* TRUCO DE DESAPARICIÓN: SOLO ADMIN */}
             {rol === 'admin' && (
                 <button onClick={() => setVista('dashboard')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'dashboard' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>DASHBOARD</button>
             )}
             <button onClick={() => setVista('pos')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'pos' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>CAJA</button>
             
-            {/* TRUCO DE DESAPARICIÓN: SOLO ADMIN */}
             {rol === 'admin' && (
                 <>
                 <button onClick={() => setVista('inventario')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'inventario' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>STOCK</button>
@@ -322,7 +325,7 @@ export default function VelascoPOS_Ultimate() {
                 <input 
                     type="text" 
                     placeholder="Buscar por nombre o escanear..." 
-                    className="w-full bg-white p-4 pl-10 rounded-2xl shadow-sm border border-blue-100 font-bold text-xs outline-none focus:border-blue-500 transition-all" 
+                    className="w-full bg-white p-4 pl-10 rounded-2xl shadow-sm border border-blue-100 font-bold text-xs outline-none focus:border-blue-500 transition-all text-black" 
                     value={inputBarras} 
                     onChange={(e) => setInputBarras(e.target.value)} 
                     autoFocus 
@@ -381,17 +384,17 @@ export default function VelascoPOS_Ultimate() {
             <div className="bg-white p-8 rounded-[3rem] shadow-xl border-t-8 border-orange-500">
                 <h2 className="font-black text-xl mb-6 italic uppercase text-slate-800">Registrar Pago</h2>
                 <div className="space-y-4">
-                    <select className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-orange-500" value={nuevaCompra.proveedor_id} onChange={e => setNuevaCompra({...nuevaCompra, proveedor_id: e.target.value})}>
+                    <select className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-orange-500 text-black" value={nuevaCompra.proveedor_id} onChange={e => setNuevaCompra({...nuevaCompra, proveedor_id: e.target.value})}>
                         <option value="">Seleccionar Proveedor</option>
                         {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                     </select>
-                    <input type="number" placeholder="Monto ($)" className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-orange-500" value={nuevaCompra.monto_total} onChange={e => setNuevaCompra({...nuevaCompra, monto_total: e.target.value})}/>
-                    <textarea placeholder="Detalles..." className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-orange-500 h-24" value={nuevaCompra.detalles} onChange={e => setNuevaCompra({...nuevaCompra, detalles: e.target.value})}></textarea>
+                    <input type="number" placeholder="Monto ($)" className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-orange-500 text-black" value={nuevaCompra.monto_total} onChange={e => setNuevaCompra({...nuevaCompra, monto_total: e.target.value})}/>
+                    <textarea placeholder="Detalles..." className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-orange-500 h-24 text-black" value={nuevaCompra.detalles} onChange={e => setNuevaCompra({...nuevaCompra, detalles: e.target.value})}></textarea>
                     <button onClick={async () => {
-                        if(!nuevaCompra.proveedor_id || !nuevaCompra.monto_total) return showMsg("Llena los campos, viejo.", "error");
-                        const { error } = await supabase.from('compras_proveedores').insert([nuevaCompra]);
+                        if(!nuevaCompra.proveedor_id || !nuevaCompra.monto_total || !profile?.empresa_id) return showMsg("Datos incompletos", "error");
+                        const { error } = await supabase.from('compras_proveedores').insert([{...nuevaCompra, empresa_id: profile.empresa_id}]);
                         if(error) return showMsg("Error al guardar", "error");
-                        showMsg("¡GASTO REGISTRADO CON ÉXITO! 💰");
+                        showMsg("¡GASTO REGISTRADO! 💰");
                         setNuevaCompra({proveedor_id:'', monto_total:'', detalles:''});
                         fetchData();
                     }} className="w-full bg-orange-600 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px]">Guardar Gasto</button>
@@ -399,14 +402,14 @@ export default function VelascoPOS_Ultimate() {
             </div>
 
             <div className="space-y-6">
-                <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-100">
+                <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-100 text-black">
                     <h2 className="font-black text-xl mb-6 italic uppercase text-slate-800">Nuevo Proveedor</h2>
                     <div className="space-y-4">
                         <input type="text" placeholder="Nombre" className="w-full bg-slate-50 p-4 rounded-xl font-bold outline-none" value={nuevoProv.nombre} onChange={e => setNuevoProv({...nuevoProv, nombre: e.target.value})}/>
                         <input type="text" placeholder="Contacto" className="w-full bg-slate-50 p-4 rounded-xl font-bold outline-none" value={nuevoProv.contacto} onChange={e => setNuevoProv({...nuevoProv, contacto: e.target.value})}/>
                         <button onClick={async () => {
-                            if(!nuevoProv.nombre) return showMsg("Falta el nombre.", "error");
-                            await supabase.from('proveedores').insert([nuevoProv]);
+                            if(!nuevoProv.nombre || !profile?.empresa_id) return showMsg("Falta el nombre.", "error");
+                            await supabase.from('proveedores').insert([{...nuevoProv, empresa_id: profile.empresa_id}]);
                             showMsg("¡PROVEEDOR AGREGADO! 🤝");
                             setNuevoProv({nombre:'', contacto:'', categoria:''});
                             fetchData();
@@ -435,20 +438,21 @@ export default function VelascoPOS_Ultimate() {
 
       {/* VISTA: INVENTARIO */}
       {vista === 'inventario' && (
-        <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in text-black">
+        <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-3xl mx-auto space-y-6">
             <div className="bg-white p-8 md:p-12 rounded-[3rem] shadow-xl border border-slate-100">
               <h2 className="font-black text-2xl mb-8 italic uppercase text-slate-800 tracking-tighter text-center">Catálogo de Productos</h2>
               <div className="space-y-4">
-                <input type="text" placeholder="Nombre" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none" value={nuevoProd.nombre} onChange={e => setNuevoProd({...nuevoProd, nombre: e.target.value})}/>
-                <input type="text" placeholder="Código de Barras" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none" value={nuevoProd.barcode} onChange={e => setNuevoProd({...nuevoProd, barcode: e.target.value})}/>
+                <input type="text" placeholder="Nombre" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none text-black" value={nuevoProd.nombre} onChange={e => setNuevoProd({...nuevoProd, nombre: e.target.value})}/>
+                <input type="text" placeholder="Código de Barras" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none text-black" value={nuevoProd.barcode} onChange={e => setNuevoProd({...nuevoProd, barcode: e.target.value})}/>
                 <div className="grid grid-cols-2 gap-4">
-                    <input type="number" placeholder="Precio ($)" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none" value={nuevoProd.precio} onChange={e => setNuevoProd({...nuevoProd, precio: e.target.value})}/>
-                    <input type="number" placeholder="Stock Inicial" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none" value={nuevoProd.stock} onChange={e => setNuevoProd({...nuevoProd, stock: e.target.value})}/>
+                    <input type="number" placeholder="Precio ($)" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none text-black" value={nuevoProd.precio} onChange={e => setNuevoProd({...nuevoProd, precio: e.target.value})}/>
+                    <input type="number" placeholder="Stock Inicial" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none text-black" value={nuevoProd.stock} onChange={e => setNuevoProd({...nuevoProd, stock: e.target.value})}/>
                 </div>
                 <button onClick={async () => {
+                    if(!profile?.empresa_id) return showMsg("Error de sesión", "error");
                     const finalStock = parseInt(nuevoProd.stock) || 0;
-                    const { error } = await supabase.from('productos').insert([{...nuevoProd, stock: finalStock}]).select();
+                    const { error } = await supabase.from('productos').insert([{...nuevoProd, stock: finalStock, empresa_id: profile.empresa_id}]);
                     if (error) return showMsg("Error al guardar", "error");
                     showMsg("¡PRODUCTO AGREGADO AL STOCK! 📦");
                     setNuevoProd({nombre:'', precio:'', stock: '', barcode: ''});
@@ -465,7 +469,7 @@ export default function VelascoPOS_Ultimate() {
                             <span className={`text-[9px] font-bold uppercase ${p.stock < 5 ? 'text-red-500' : 'text-slate-400'}`}>Cant: {p.stock}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <input type="number" className="w-20 bg-slate-50 p-2 rounded-lg font-black text-center text-xs border" defaultValue={p.stock} onBlur={(e) => {
+                            <input type="number" className="w-20 bg-slate-50 p-2 rounded-lg font-black text-center text-xs border text-black" defaultValue={p.stock} onBlur={(e) => {
                                 const val = parseInt(e.target.value) || 0;
                                 supabase.from('productos').update({ stock: val }).eq('id', p.id).then(()=>{
                                     fetchData();
