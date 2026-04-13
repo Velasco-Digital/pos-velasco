@@ -1,30 +1,31 @@
+// hooks/useUserRole.ts
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { getUsuarioPerfil } from '../lib/auth-utils';
 
-export const useUserRole = () => {
+export function useUserRole() {
   const [rol, setRol] = useState<string | null>(null);
-  const [empresaId, setEmpresaId] = useState<string | null>(null);
+  const [profile, setProfile] = useState<any>(null); // <--- AGREGAMOS ESTO
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkUser = async () => {
-      // 1. Le preguntamos a Supabase: "¿Quién inició sesión?"
+    async function getRole() {
       const { data: { user } } = await supabase.auth.getUser();
-
       if (user) {
-        // 2. Si hay usuario, buscamos su rol en la tabla de perfiles
-        const perfil = await getUsuarioPerfil(user.id);
-        if (perfil) {
-          setRol(perfil.rol);
-          setEmpresaId(perfil.empresa_id);
+        const { data, error } = await supabase
+          .from('perfiles')
+          .select('*') // <--- SELECCIONAMOS TODO
+          .eq('id', user.id)
+          .single();
+
+        if (data) {
+          setRol(data.rol);
+          setProfile(data); // <--- GUARDAMOS EL PERFIL COMPLETO
         }
       }
       setLoading(false);
-    };
-
-    checkUser();
+    }
+    getRole();
   }, []);
 
-  return { rol, empresaId, loading };
-};
+  return { rol, profile, loading }; // <--- AHORA REGRESA EL PERFIL
+}
