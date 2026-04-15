@@ -30,6 +30,10 @@ export default function VelascoPOS_Ultimate() {
 
   const [toast, setToast] = useState({ visible: false, msg: '', tipo: 'success' });
 
+  // --- NUEVA FUNCIÓN: ESTADO DE AJUSTES ---
+  const [ajustes, setAjustes] = useState({ aplicar_isr: false, mostrar_top_productos: true, mostrar_ganancias: true });
+
+
   // 2. Control de sesión y carga de datos automática al detectar el perfil
   useEffect(() => {
     setMontado(true);
@@ -41,12 +45,34 @@ export default function VelascoPOS_Ultimate() {
   useEffect(() => {
     if (session && profile?.empresa_id) {
       fetchData();
+      cargarAjustes(); // <--- Cargar ajustes al iniciar
     }
   }, [session, profile]);
 
   const showMsg = (msg, tipo = 'success') => {
     setToast({ visible: true, msg, tipo });
     setTimeout(() => setToast({ visible: false, msg: '', tipo: 'success' }), 2500);
+  };
+
+  // --- NUEVA FUNCIÓN: CARGAR AJUSTES DESDE SUPABASE ---
+  const cargarAjustes = async () => {
+    const { data, error } = await supabase
+      .from('configuracion_sistema')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .single();
+    
+    if (data) {
+      setAjustes(data);
+    } else if (error && error.code === 'PGRST116') {
+      // Si no existe, creamos el registro inicial para este usuario
+      const { data: newData } = await supabase
+        .from('configuracion_sistema')
+        .insert([{ user_id: session.user.id }])
+        .select()
+        .single();
+      if (newData) setAjustes(newData);
+    }
   };
 
   // 3. Consultas filtradas por empresa_id (Cada quien ve lo suyo)
@@ -88,18 +114,34 @@ export default function VelascoPOS_Ultimate() {
     }
   };
 
+    // Referencia para evitar duplicados del escáner (Anti-rebote)
+  const ultimoEscaneo = useRef(0);
+
   const agregarAlCarrito = (p) => {
+    const ahora = Date.now();
+    // Si se intenta agregar el mismo producto en menos de 500ms, lo ignoramos
+    if (ahora - ultimoEscaneo.current < 500) return;
+    ultimoEscaneo.current = ahora;
+
     if(p.stock <= 0) return showMsg("¡Sin existencias!", "error");
+    
     const ex = carrito.find(i => i.id === p.id);
-    if (ex) setCarrito(carrito.map(i => i.id === p.id ? {...i, cant: i.cant + 1} : i));
-    else setCarrito([...carrito, {...p, cant: 1}]);
+    if (ex) {
+      setCarrito(carrito.map(i => i.id === p.id ? {...i, cant: i.cant + 1} : i));
+    } else {
+      setCarrito([...carrito, {...p, cant: 1}]);
+    }
   };
 
-  // 5. Ventas con etiqueta de empresa
+
+  // 5. Ventas con etiqueta de empresa (IMPLEMENTACIÓN DE AJUSTE ISR)
   const finalizarVenta = async (imprimir = false) => {
     if (carrito.length === 0 || !profile?.empresa_id) return;
     const subtotal = carrito.reduce((a,b)=>a+(b.precio*b.cant), 0);
-    const totalVenta = subtotal * 1.16;
+    
+    // Si el ajuste está activo usa 1.16, si no, usa 1 (sin cambios)
+    const factorImpuesto = ajustes.aplicar_isr ? 1.16 : 1;
+    const totalVenta = subtotal * factorImpuesto;
     
     const { error } = await supabase.from('ventas').insert([{ 
         items: carrito, 
@@ -248,6 +290,8 @@ export default function VelascoPOS_Ultimate() {
                 <button onClick={() => setVista('inventario')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'inventario' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>STOCK</button>
                 <button onClick={() => setVista('proveedores')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'proveedores' ? 'bg-orange-600 text-white' : 'text-slate-400'}`}>PROVEEDORES</button>
                 <button onClick={() => setVista('corte')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'corte' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>CORTE</button>
+                {/* BOTON NUEVO: AJUSTES */}
+                <button onClick={() => setVista('ajustes')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'ajustes' ? 'bg-slate-700 text-white' : 'text-slate-400'}`}>AJUSTES</button>
                 </>
             )}
         </div>
@@ -296,21 +340,21 @@ export default function VelascoPOS_Ultimate() {
                     </div>
                 </div>
 
-                <div className="bg-white p-8 rounded-[3rem] shadow-sm border">
-                    <h3 className="text-xs font-black uppercase mb-6 italic text-slate-800 tracking-tighter">Top 5 Productos</h3>
-                    <div className="space-y-4">
-                        {top5.map(([nombre, cant], i) => (
-                            <div key={i} className="flex justify-between items-center border-b pb-2">
-                                <span className="text-[10px] font-black text-slate-600 uppercase">{nombre}</span>
-                                <span className="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-[9px] font-black">{cant} pz</span>
-                            </div>
-                        ))}
+    {/* Solo se muestra si el ajuste está activo */}
+    {ajustes.mostrar_top_productos && (
+        <div className="bg-white p-8 rounded-[3rem] shadow-sm border">
+            <h3 className="text-xs font-black uppercase mb-6 italic text-slate-800 tracking-tighter">Top 5 Productos</h3>
+            <div className="space-y-4">
+                {top5.map(([nombre, cant], i) => (
+                    <div key={i} className="flex justify-between items-center border-b pb-2">
+                        <span className="text-[10px] font-black text-slate-600 uppercase">{nombre}</span>
+                        <span className="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-[9px] font-black">{cant} pz</span>
                     </div>
-                </div>
+                ))}
             </div>
-          </div>
-        </main>
-      )}
+        </div>
+    )}
+
 
       {/* VISTA: POS (CAJA) */}
       {vista === 'pos' && (
@@ -366,7 +410,10 @@ export default function VelascoPOS_Ultimate() {
               </div>
               <div className="flex justify-between items-end mb-6">
                 <span className="text-blue-400 font-black italic text-xs">TOTAL:</span>
-                <span className="text-4xl font-black text-green-400 tracking-tighter">${(carrito.reduce((a,b)=>a+(b.precio*b.cant),0)*1.16).toFixed(2)}</span>
+                <span className="text-4xl font-black text-green-400 tracking-tighter">
+                    {/* IMPLEMENTACIÓN VISUAL DE AJUSTE ISR EN CARRITO */}
+                    ${(carrito.reduce((a,b)=>a+(b.precio*b.cant),0) * (ajustes.aplicar_isr ? 1.16 : 1)).toFixed(2)}
+                </span>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <button onClick={() => finalizarVenta(false)} className="bg-slate-700 py-5 rounded-2xl font-black text-[10px] uppercase">Registrar</button>
@@ -377,96 +424,192 @@ export default function VelascoPOS_Ultimate() {
         </main>
       )}
 
-      {/* VISTA: PROVEEDORES */}
+      {/* VISTA: PROVEEDORES REDISEÑADA */}
       {vista === 'proveedores' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in slide-in-from-bottom-10">
-          <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-white p-8 rounded-[3rem] shadow-xl border-t-8 border-orange-500">
-                <h2 className="font-black text-xl mb-6 italic uppercase text-slate-800">Registrar Pago</h2>
-                <div className="space-y-4">
-                    <select className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-orange-500 text-black" value={nuevaCompra.proveedor_id} onChange={e => setNuevaCompra({...nuevaCompra, proveedor_id: e.target.value})}>
-                        <option value="">Seleccionar Proveedor</option>
-                        {proveedores.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-                    </select>
-                    <input type="number" placeholder="Monto ($)" className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-orange-500 text-black" value={nuevaCompra.monto_total} onChange={e => setNuevaCompra({...nuevaCompra, monto_total: e.target.value})}/>
-                    <textarea placeholder="Detalles..." className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-orange-500 h-24 text-black" value={nuevaCompra.detalles} onChange={e => setNuevaCompra({...nuevaCompra, detalles: e.target.value})}></textarea>
-                    <button onClick={async () => {
-                        if(!nuevaCompra.proveedor_id || !nuevaCompra.monto_total || !profile?.empresa_id) return showMsg("Datos incompletos", "error");
-                        const { error } = await supabase.from('compras_proveedores').insert([{...nuevaCompra, empresa_id: profile.empresa_id}]);
-                        if(error) return showMsg("Error al guardar", "error");
-                        showMsg("¡GASTO REGISTRADO! 💰");
-                        setNuevaCompra({proveedor_id:'', monto_total:'', detalles:''});
-                        fetchData();
-                    }} className="w-full bg-orange-600 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px]">Guardar Gasto</button>
+          <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            {/* COLUMNA 1: SELECCIÓN Y PAGO */}
+            <div className="lg:col-span-2 space-y-6">
+                <div className="bg-white p-8 rounded-[3rem] shadow-xl border-t-8 border-orange-500">
+                    <h2 className="font-black text-xl mb-6 italic uppercase text-slate-800 flex items-center gap-2">
+                        <span className="bg-orange-100 p-2 rounded-xl">💰</span> Registrar Pago
+                    </h2>
+                    
+                    <div className="space-y-6">
+                        {/* Selector Estético de Proveedores */}
+                        <div>
+                            <p className="text-[9px] font-black text-slate-400 uppercase mb-3 ml-2">1. Selecciona el Proveedor</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                                {proveedores.map(p => (
+                                    <button 
+                                        key={p.id} 
+                                        onClick={() => setNuevaCompra({...nuevaCompra, proveedor_id: p.id})}
+                                        className={`p-4 rounded-2xl border-2 transition-all text-left group ${nuevaCompra.proveedor_id === p.id ? 'border-orange-500 bg-orange-50' : 'border-slate-100 bg-slate-50 hover:border-orange-200'}`}
+                                    >
+                                        <span className={`block text-[10px] font-black uppercase ${nuevaCompra.proveedor_id === p.id ? 'text-orange-600' : 'text-slate-600'}`}>{p.nombre}</span>
+                                        <span className="text-[8px] text-slate-400 font-bold">{p.categoria || 'General'}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Inputs de Monto y Detalles */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <p className="text-[9px] font-black text-slate-400 uppercase mb-2 ml-2">2. Importe del Gasto</p>
+                                <input type="number" placeholder="0.00" className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-orange-500 text-black text-xl" value={nuevaCompra.monto_total} onChange={e => setNuevaCompra({...nuevaCompra, monto_total: e.target.value})}/>
+                            </div>
+                            <div>
+                                <p className="text-[9px] font-black text-slate-400 uppercase mb-2 ml-2">3. Concepto o Nota</p>
+                                <textarea placeholder="¿Qué se compró?" className="w-full bg-slate-50 p-5 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-orange-500 h-[68px] text-black text-xs resize-none" value={nuevaCompra.detalles} onChange={e => setNuevaCompra({...nuevaCompra, detalles: e.target.value})}></textarea>
+                            </div>
+                        </div>
+
+                        <button onClick={async () => {
+                            if(!nuevaCompra.proveedor_id || !nuevaCompra.monto_total || !profile?.empresa_id) return showMsg("Selecciona proveedor y monto", "error");
+                            const { error } = await supabase.from('compras_proveedores').insert([{...nuevaCompra, empresa_id: profile.empresa_id}]);
+                            if(error) return showMsg("Error al guardar", "error");
+                            showMsg("¡PAGO REGISTRADO EXITOSAMENTE! 💸");
+                            setNuevaCompra({proveedor_id:'', monto_total:'', detalles:''});
+                            fetchData();
+                        }} className="w-full bg-orange-600 text-white font-black py-6 rounded-3xl shadow-lg shadow-orange-500/30 uppercase text-xs tracking-widest hover:bg-orange-700 transition-all">Confirmar Salida de Dinero</button>
+                    </div>
+                </div>
+
+                {/* Tabla de Últimos Pagos con mejor diseño */}
+                <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
+                    <div className="p-6 bg-orange-50 border-b flex justify-between items-center">
+                        <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Historial Reciente de Pagos</span>
+                    </div>
+                    <div className="max-h-80 overflow-y-auto">
+                        {compras.length > 0 ? compras.map(c => (
+                            <div key={c.id} className="p-5 border-b border-slate-50 flex justify-between items-center hover:bg-slate-50 transition-colors">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-black text-xs">
+                                        {c.proveedores?.nombre?.substring(0,2).toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <span className="font-black text-[11px] text-slate-800 uppercase block">{c.proveedores?.nombre}</span>
+                                        <span className="text-[8px] text-slate-400 font-bold uppercase">{new Date(c.fecha).toLocaleDateString()} • {c.detalles || 'Sin detalles'}</span>
+                                    </div>
+                                </div>
+                                <span className="text-red-500 font-black text-lg tracking-tighter">-${parseFloat(c.monto_total).toFixed(2)}</span>
+                            </div>
+                        )) : (
+                            <div className="p-10 text-center text-slate-300 font-bold text-xs uppercase">No hay pagos registrados aún</div>
+                        )}
+                    </div>
                 </div>
             </div>
 
+            {/* COLUMNA 2: ALTA DE PROVEEDORES */}
             <div className="space-y-6">
-                <div className="bg-white p-8 rounded-[3rem] shadow-xl border border-slate-100 text-black">
-                    <h2 className="font-black text-xl mb-6 italic uppercase text-slate-800">Nuevo Proveedor</h2>
+                <div className="bg-slate-900 p-8 rounded-[3rem] shadow-2xl border-b-8 border-blue-500">
+                    <h2 className="font-black text-xl mb-6 italic uppercase text-white flex items-center gap-2">
+                        <span className="bg-blue-500 p-2 rounded-xl text-white">🤝</span> Nuevo Socio
+                    </h2>
                     <div className="space-y-4">
-                        <input type="text" placeholder="Nombre" className="w-full bg-slate-50 p-4 rounded-xl font-bold outline-none" value={nuevoProv.nombre} onChange={e => setNuevoProv({...nuevoProv, nombre: e.target.value})}/>
-                        <input type="text" placeholder="Contacto" className="w-full bg-slate-50 p-4 rounded-xl font-bold outline-none" value={nuevoProv.contacto} onChange={e => setNuevoProv({...nuevoProv, contacto: e.target.value})}/>
+                        <div className="space-y-1">
+                            <p className="text-[8px] font-black text-blue-400 uppercase ml-2">Nombre del Negocio</p>
+                            <input type="text" placeholder="Ej. Coca-Cola México" className="w-full bg-slate-800 text-white p-4 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-blue-500 transition-all" value={nuevoProv.nombre} onChange={e => setNuevoProv({...nuevoProv, nombre: e.target.value})}/>
+                        </div>
+                        <div className="space-y-1">
+                            <p className="text-[8px] font-black text-blue-400 uppercase ml-2">Contacto / Teléfono</p>
+                            <input type="text" placeholder="Ej. 33 1234 5678" className="w-full bg-slate-800 text-white p-4 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-blue-500 transition-all" value={nuevoProv.contacto} onChange={e => setNuevoProv({...nuevoProv, contacto: e.target.value})}/>
+                        </div>
                         <button onClick={async () => {
                             if(!nuevoProv.nombre || !profile?.empresa_id) return showMsg("Falta el nombre.", "error");
                             await supabase.from('proveedores').insert([{...nuevoProv, empresa_id: profile.empresa_id}]);
-                            showMsg("¡PROVEEDOR AGREGADO! 🤝");
+                            showMsg("¡NUEVO PROVEEDOR REGISTRADO! 🤝");
                             setNuevoProv({nombre:'', contacto:'', categoria:''});
                             fetchData();
-                        }} className="w-full bg-slate-900 text-white font-black py-4 rounded-xl uppercase text-[9px]">Registrar</button>
+                        }} className="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px] tracking-widest mt-4">Dar de Alta</button>
                     </div>
                 </div>
-
-                <div className="bg-white rounded-[2.5rem] shadow-sm border overflow-hidden">
-                    <div className="p-4 bg-orange-50 border-b text-[10px] font-black text-orange-600 uppercase tracking-widest">Últimos Pagos</div>
-                    <div className="max-h-64 overflow-y-auto">
-                        {compras.map(c => (
-                            <div key={c.id} className="p-4 border-b border-slate-50 flex justify-between items-center">
-                                <div>
-                                    <span className="font-black text-[10px] text-slate-800 uppercase block">{c.proveedores?.nombre}</span>
-                                    <span className="text-[8px] text-slate-400 font-bold">{new Date(c.fecha).toLocaleDateString()}</span>
-                                </div>
-                                <span className="text-orange-600 font-black text-sm">-${parseFloat(c.monto_total).toFixed(2)}</span>
-                            </div>
-                        ))}
+                
+                <div className="bg-orange-600 p-8 rounded-[3rem] text-white shadow-xl relative overflow-hidden group">
+                    <div className="relative z-10">
+                        <p className="text-[10px] font-black uppercase opacity-80 mb-1 text-orange-200">Total Gastos Mes</p>
+                        <h2 className="text-4xl font-black tracking-tighter">${totalGastos.toFixed(2)}</h2>
                     </div>
+                    <div className="absolute -right-4 -bottom-4 text-7xl opacity-20 group-hover:scale-110 transition-transform">📉</div>
                 </div>
             </div>
+
           </div>
         </main>
       )}
 
-      {/* VISTA: INVENTARIO */}
+
+      {/* VISTA: INVENTARIO CON CÁLCULO DE GANANCIAS */}
       {vista === 'inventario' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
           <div className="max-w-3xl mx-auto space-y-6">
             <div className="bg-white p-8 md:p-12 rounded-[3rem] shadow-xl border border-slate-100">
               <h2 className="font-black text-2xl mb-8 italic uppercase text-slate-800 tracking-tighter text-center">Catálogo de Productos</h2>
               <div className="space-y-4">
-                <input type="text" placeholder="Nombre" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none text-black" value={nuevoProd.nombre} onChange={e => setNuevoProd({...nuevoProd, nombre: e.target.value})}/>
+                <input type="text" placeholder="Nombre del Producto" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none text-black" value={nuevoProd.nombre} onChange={e => setNuevoProd({...nuevoProd, nombre: e.target.value})}/>
                 <input type="text" placeholder="Código de Barras" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none text-black" value={nuevoProd.barcode} onChange={e => setNuevoProd({...nuevoProd, barcode: e.target.value})}/>
+                
                 <div className="grid grid-cols-2 gap-4">
-                    <input type="number" placeholder="Precio ($)" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none text-black" value={nuevoProd.precio} onChange={e => setNuevoProd({...nuevoProd, precio: e.target.value})}/>
-                    <input type="number" placeholder="Stock Inicial" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none text-black" value={nuevoProd.stock} onChange={e => setNuevoProd({...nuevoProd, stock: e.target.value})}/>
+                    <div className="space-y-1">
+                        <p className="text-[8px] font-black text-slate-400 uppercase ml-2">Costo Compra ($)</p>
+                        <input type="number" placeholder="0.00" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none text-black" value={nuevoProd.precio_compra} onChange={e => setNuevoProd({...nuevoProd, precio_compra: e.target.value})}/>
+                    </div>
+                    <div className="space-y-1">
+                        <p className="text-[8px] font-black text-blue-500 uppercase ml-2">Precio Venta ($)</p>
+                        <input type="number" placeholder="0.00" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none text-black" value={nuevoProd.precio} onChange={e => setNuevoProd({...nuevoProd, precio: e.target.value})}/>
+                    </div>
                 </div>
+
+                {/* INDICADOR DE GANANCIA EN TIEMPO REAL */}
+                {nuevoProd.precio && nuevoProd.precio_compra && (
+                    <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex justify-between items-center animate-in zoom-in-95">
+                        <span className="text-[9px] font-black text-emerald-700 uppercase">Utilidad Proyectada:</span>
+                        <span className="text-emerald-600 font-black text-sm">
+                            ${(parseFloat(nuevoProd.precio) - parseFloat(nuevoProd.precio_compra)).toFixed(2)} 
+                            <span className="ml-2 text-[10px] opacity-70">
+                                ({(((parseFloat(nuevoProd.precio) - parseFloat(nuevoProd.precio_compra)) / parseFloat(nuevoProd.precio_compra)) * 100).toFixed(0)}%)
+                            </span>
+                        </span>
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 gap-4">
+                    <div className="space-y-1">
+                        <p className="text-[8px] font-black text-slate-400 uppercase ml-2">Stock Inicial</p>
+                        <input type="number" placeholder="0" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none text-black" value={nuevoProd.stock} onChange={e => setNuevoProd({...nuevoProd, stock: e.target.value})}/>
+                    </div>
+                </div>
+
                 <button onClick={async () => {
                     if(!profile?.empresa_id) return showMsg("Error de sesión", "error");
                     const finalStock = parseInt(nuevoProd.stock) || 0;
+                    // Agregamos precio_compra a la inserción
                     const { error } = await supabase.from('productos').insert([{...nuevoProd, stock: finalStock, empresa_id: profile.empresa_id}]);
                     if (error) return showMsg("Error al guardar", "error");
                     showMsg("¡PRODUCTO AGREGADO AL STOCK! 📦");
-                    setNuevoProd({nombre:'', precio:'', stock: '', barcode: ''});
+                    setNuevoProd({nombre:'', precio:'', stock: '', barcode: '', precio_compra: ''});
                     fetchData();
-                }} className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px]">Añadir al Catálogo</button>
+                }} className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px] tracking-widest mt-2">Añadir al Catálogo</button>
               </div>
             </div>
+
             <div className="bg-white rounded-[2.5rem] shadow-sm border overflow-hidden">
                 <div className="p-4 bg-slate-50 border-b text-[10px] font-black text-slate-400 uppercase tracking-widest">Existencias Actuales</div>
                 {catalogo.map(p => (
-                    <div key={p.id} className="p-6 border-b border-slate-50 flex justify-between items-center gap-4">
+                    <div key={p.id} className="p-6 border-b border-slate-50 flex justify-between items-center gap-4 hover:bg-slate-50 transition-colors">
                         <div className="flex-1">
                             <span className="font-black text-[10px] text-slate-800 uppercase block">{p.nombre}</span>
-                            <span className={`text-[9px] font-bold uppercase ${p.stock < 5 ? 'text-red-500' : 'text-slate-400'}`}>Cant: {p.stock}</span>
+                            <div className="flex items-center gap-3">
+                                <span className={`text-[9px] font-bold uppercase ${p.stock < 5 ? 'text-red-500' : 'text-slate-400'}`}>Cant: {p.stock}</span>
+                                {p.precio_compra && (
+                                    <span className="text-[9px] font-black text-emerald-600 uppercase bg-emerald-50 px-2 py-0.5 rounded-md">
+                                        Ganancia: ${(parseFloat(p.precio) - parseFloat(p.precio_compra)).toFixed(2)}
+                                    </span>
+                                )}
+                            </div>
                         </div>
                         <div className="flex items-center gap-2">
                             <input type="number" className="w-20 bg-slate-50 p-2 rounded-lg font-black text-center text-xs border text-black" defaultValue={p.stock} onBlur={(e) => {
@@ -490,6 +633,7 @@ export default function VelascoPOS_Ultimate() {
           </div>
         </main>
       )}
+
 
       {/* VISTA: CORTE */}
       {vista === 'corte' && (
@@ -541,6 +685,57 @@ export default function VelascoPOS_Ultimate() {
         </main>
       )}
 
-    </div>
-  );
-}
+      {/* VISTA: AJUSTES (LIMPIA Y FUNCIONAL) */}
+      {vista === 'ajustes' && (
+        <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in slide-in-from-right-10">
+          <div className="max-w-md mx-auto space-y-6">
+            <div className="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100">
+              <h2 className="font-black text-2xl mb-8 italic uppercase text-slate-800 tracking-tighter text-center">Configuración del Sistema</h2>
+              
+              <div className="space-y-4">
+                {/* SWITCH ISR */}
+                <div className="flex items-center justify-between p-6 bg-slate-50 rounded-3xl border-2 border-transparent hover:border-blue-500 transition-all">
+                  <div>
+                    <span className="font-black text-[10px] text-slate-800 uppercase block">Sumar ISR (16%) al cobrar</span>
+                    <span className="text-[8px] text-slate-400 font-bold">Activa o desactiva el impuesto en ventas</span>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    className="w-8 h-8 rounded-xl accent-blue-600 cursor-pointer"
+                    checked={ajustes.aplicar_isr} 
+                    onChange={async (e) => {
+                      const val = e.target.checked;
+                      setAjustes({...ajustes, aplicar_isr: val});
+                      const { error } = await supabase.from('configuracion_sistema').update({ aplicar_isr: val }).eq('user_id', session.user.id);
+                      if(!error) showMsg(val ? "COBRO DE ISR ACTIVADO ✅" : "COBRO DE ISR DESACTIVADO ❌");
+                    }} 
+                  />
+                </div>
+
+                {/* SWITCH TOP PRODUCTOS */}
+                <div className="flex items-center justify-between p-6 bg-slate-50 rounded-3xl border-2 border-transparent hover:border-blue-500 transition-all">
+                  <div>
+                    <span className="font-black text-[10px] text-slate-800 uppercase block">Mostrar Top Productos</span>
+                    <span className="text-[8px] text-slate-400 font-bold">Ver los más vendidos en Dashboard</span>
+                  </div>
+                  <input 
+                    type="checkbox" 
+                    className="w-8 h-8 rounded-xl accent-blue-600 cursor-pointer"
+                    checked={ajustes.mostrar_top_productos} 
+                    onChange={async (e) => {
+                      const val = e.target.checked;
+                      setAjustes({...ajustes, mostrar_top_productos: val});
+                      const { error } = await supabase.from('configuracion_sistema').update({ mostrar_top_productos: val }).eq('user_id', session.user.id);
+                      if(!error) showMsg(val ? "TOP PRODUCTOS VISIBLE 📊" : "TOP PRODUCTOS OCULTO 👁️");
+                    }} 
+                  />
+                </div>
+              </div>
+
+              <div className="mt-10 pt-6 border-t border-dashed text-center">
+                 <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.3em]">VD POS - Velasco Digital Co.</p>
+              </div>
+            </div>
+          </div>
+        </main>
+      )}
