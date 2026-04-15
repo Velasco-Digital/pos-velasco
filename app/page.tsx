@@ -739,8 +739,6 @@ export default function VelascoPOS_Ultimate() {
           </div>
                   </main>
       )}
-
     </div>
   );
 }
-
