@@ -354,6 +354,10 @@ export default function VelascoPOS_Ultimate() {
             </div>
         </div>
     )}
+           </div>
+          </div>
+        </main>
+      )}
 
 
       {/* VISTA: POS (CAJA) */}
@@ -737,8 +741,9 @@ export default function VelascoPOS_Ultimate() {
               </div>
             </div>
           </div>
-                  </main>
+        </main>
       )}
+
     </div>
   );
 }
