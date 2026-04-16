@@ -400,15 +400,12 @@ const uploadImagen = async (file) => {
                         <span className="text-[10px] font-black text-slate-600 uppercase">{nombre}</span>
                          <span className="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-[9px] font-black">{cant} pz</span>
                               </div>
-                          ))}
-                      </div>
-                  </div>
-              )}
-          </div>
-        </div>
-      </main>
-    )}
-      {/* VISTA: POS (CAJA) */}
+        )) }
+      </div>
+    </div>
+  )}
+
+  {/* VISTA: POS (CAJA) */}
       {vista === 'pos' && (
         <main className="flex-1 flex flex-col md:flex-row overflow-hidden animate-in fade-in">
           <section className="flex-1 p-4 overflow-y-auto">
