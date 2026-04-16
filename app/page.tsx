@@ -221,11 +221,29 @@ const uploadImagen = async (file) => {
   }).reverse();
 
   const dataGrafica = ultimos7Dias.map(dia => {
-    const totalDia = historial
-        .filter(v => new Date(v.fecha).toDateString() === dia)
-        .reduce((acc, v) => acc + parseFloat(v.total), 0);
-    return { dia: dia.split(' ')[0], total: totalDia, esHoy: dia === hoyStr };
-  });
+    const ventasDelDia = historial.filter(v => new Date(v.fecha).toDateString() === dia);
+    
+    const totalVenta = ventasDelDia.reduce((acc, v) => acc + parseFloat(v.total), 0);
+    
+    // CALCULO DE GANANCIA REAL:
+    const utilidadReal = ventasDelDia.reduce((acc, v) => {
+        const gananciaVenta = v.items?.reduce((subAcc, item) => {
+            // Buscamos el producto en el catálogo para saber su precio_compra
+            const prodOriginal = catalogo.find(p => p.nombre === item.nombre);
+            const costo = prodOriginal?.precio_compra || 0;
+            return subAcc + ((item.precio - costo) * item.cant);
+        }, 0);
+        return acc + gananciaVenta;
+    }, 0);
+
+    return { 
+        dia: dia.split(' ')[0], 
+        total: totalVenta, 
+        ganancia: utilidadReal, // <--- Dato nuevo
+        esHoy: dia === hoyStr 
+    };
+});
+
 
   const maxVenta = Math.max(...dataGrafica.map(d => d.total), 1);
   const conteoProd = {};
@@ -355,11 +373,19 @@ const uploadImagen = async (file) => {
                                 <span className={`text-[7px] font-black ${d.total > 0 ? 'text-blue-600' : 'text-slate-300'}`}>
                                     ${d.total.toFixed(0)}
                                 </span>
-                                <div 
-                                    className={`w-full rounded-t-xl transition-all duration-700 ${d.esHoy ? 'bg-blue-600 shadow-lg shadow-blue-500/30' : 'bg-slate-200 group-hover:bg-blue-300'}`} 
+                                                                <div 
+                                    className={`w-full rounded-t-xl transition-all duration-700 relative overflow-hidden ${d.esHoy ? 'bg-blue-600 shadow-lg shadow-blue-500/30' : 'bg-slate-200 group-hover:bg-blue-300'}`} 
                                     style={{ height: `${(d.total / maxVenta) * 75}%`, minHeight: d.total > 0 ? '4px' : '2px' }}
-                                ></div>
-                                <span className={`text-[8px] font-black uppercase mt-2 ${d.esHoy ? 'text-blue-600' : 'text-slate-400'}`}>{d.dia}</span>
+                                >
+                                    {/* BARRA DE GANANCIA REAL (VERDE) */}
+                                    {d.total > 0 && (
+                                        <div 
+                                            className="absolute bottom-0 left-0 right-0 bg-emerald-500 shadow-lg"
+                                            style={{ height: `${(d.ganancia / d.total) * 100}%` }}
+                                        ></div>
+                                    )}
+                                </div>
+</span>
                             </div>
                         ))}
                     </div>
@@ -641,7 +667,6 @@ const uploadImagen = async (file) => {
     <input 
         type="file" 
         accept="image/*" 
-        capture="environment" 
         className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-[10px] text-black border-2 border-transparent focus:border-blue-500 outline-none transition-all file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-blue-100 file:text-blue-600" 
         onChange={(e) => {
             if(e.target.files[0]) {
