@@ -398,13 +398,16 @@ const uploadImagen = async (file) => {
                 {top5.map(([nombre, cant], i) => (
                     <div key={i} className="flex justify-between items-center border-b pb-2">
                         <span className="text-[10px] font-black text-slate-600 uppercase">{nombre}</span>
-                        <span className="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-[9px] font-black">{cant} pz</span>
-                    </div>
-                ))}
-            </div>
-            </div>
-        </main>
-      )}
+                         <span className="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-[9px] font-black">{cant} pz</span>
+                              </div>
+                          ))}
+                      </div>
+                  </div>
+              )}
+          </div>
+        </div>
+      </main>
+    )}
 
       {/* VISTA: POS (CAJA) */}
       {vista === 'pos' && (
