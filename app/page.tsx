@@ -385,11 +385,10 @@ const uploadImagen = async (file) => {
                                         ></div>
                                     )}
                                 </div>
-</span>
-                            </div>
-                        ))}
+                            <span className={`text-[8px] font-black uppercase mt-2 ${d.esHoy ? 'text-blue-600' : 'text-slate-400'}`}>{d.dia}</span>
+                        </div>
+                    ))}
                     </div>
-                </div>
 
     {/* Solo se muestra si el ajuste está activo */}
     {ajustes.mostrar_top_productos && (
