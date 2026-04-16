@@ -403,9 +403,8 @@ const uploadImagen = async (file) => {
                 ))}
             </div>
         </div>
-    </main>
-)}
-  {/* VISTA: POS (CAJA) */}
+            </main>)}
+
       {vista === 'pos' && (
         <main className="flex-1 flex flex-col md:flex-row overflow-hidden animate-in fade-in">
           <section className="flex-1 p-4 overflow-y-auto">
