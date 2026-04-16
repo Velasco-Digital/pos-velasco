@@ -389,25 +389,26 @@ const uploadImagen = async (file) => {
                         </div>
                     ))}
                     </div>
+                </div>
 
-    {/* Solo se muestra si el ajuste está activo */}
-    {ajustes.mostrar_top_productos && (
-        <div className="bg-white p-8 rounded-[3rem] shadow-sm border">
-            <h3 className="text-xs font-black uppercase mb-6 italic text-slate-800 tracking-tighter">Top 5 Productos</h3>
-            <div className="space-y-4">
-                {top5.map(([nombre, cant], i) => (
-                    <div key={i} className="flex justify-between items-center border-b pb-2">
-                        <span className="text-[10px] font-black text-slate-600 uppercase">{nombre}</span>
-                        <span className="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-[9px] font-black">{cant} pz</span>
-                    </div>
-                ))}
+                {/* Solo se muestra si el ajuste está activo */}
+                {ajustes.mostrar_top_productos && (
+                    <div className="bg-white p-8 rounded-[3rem] shadow-sm border">
+                        <h3 className="text-xs font-black uppercase mb-6 italic text-slate-800 tracking-tighter">Top 5 Productos</h3>
+                        <div className="space-y-4">
+                            {top5.map(([nombre, cant], i) => (
+                                <div key={i} className="flex justify-between items-center border-b pb-2">
+                                    <span className="text-[10px] font-black text-slate-600 uppercase">{nombre}</span>
+                                    <span className="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-[9px] font-black">{cant} pz</span>
+                                </div>
+                            ))}
+                        </div>
             </div>
-        </div>
-            </main>)}
+        </main>
+      )}
 
       {vista === 'pos' && (
-        <main className="flex-1 flex flex-col md:flex-row overflow-hidden animate-in fade-in">
-          <section className="flex-1 p-4 overflow-y-auto">
+
             <form onSubmit={(e) => { 
                 e.preventDefault(); 
                 const p = catalogo.find(x => x.barcode === inputBarras); 
