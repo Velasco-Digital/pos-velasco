@@ -400,7 +400,7 @@ const uploadImagen = async (file) => {
                         <span className="text-[10px] font-black text-slate-600 uppercase">{nombre}</span>
                          <span className="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-[9px] font-black">{cant} pz</span>
                               </div>
-                          )}
+                          ))}
                       </div>
                   </div>
               )}
