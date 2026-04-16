@@ -21,6 +21,8 @@ export default function VelascoPOS_Ultimate() {
   const [fechaConsulta, setFechaConsulta] = useState(new Date().toLocaleDateString('en-CA'));
   const [ticketImpresion, setTicketImpresion] = useState({ items: [], total: 0, fecha: '', vendedor: '', metodo: '' });
   const [nuevoProd, setNuevoProd] = useState({ nombre: '', precio: '', stock: '', barcode: '' });
+  const [file, setFile] = useState(null); // Para guardar la foto antes de subirla
+  const [pagoCon, setPagoCon] = useState(''); // Cantidad con la que paga el cliente
   const [inputBarras, setInputBarras] = useState('');
 
   const [proveedores, setProveedores] = useState([]);
@@ -33,7 +35,29 @@ export default function VelascoPOS_Ultimate() {
   // --- NUEVA FUNCIÓN: ESTADO DE AJUSTES ---
   const [ajustes, setAjustes] = useState({ aplicar_isr: false, mostrar_top_productos: true, mostrar_ganancias: true });
 
+// --- FUNCIÓN DE CARGA DE IMÁGENES A SUPABASE STORAGE ---
+const uploadImagen = async (file) => {
+  try {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    const filePath = `${profile.empresa_id}/${fileName}`; // Organiza por ID de empresa
 
+    const { error: uploadError } = await supabase.storage
+      .from('productos_fotos') // Asegúrate de haber creado este bucket en Supabase
+      .upload(filePath, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data } = supabase.storage
+      .from('productos_fotos')
+      .getPublicUrl(filePath);
+
+    return data.publicUrl; // Nos regresa el link real para la base de datos
+  } catch (error) {
+    showMsg("Error al subir la imagen", "error");
+    return null;
+  }
+};
   // 2. Control de sesión y carga de datos automática al detectar el perfil
   useEffect(() => {
     setMontado(true);
@@ -157,9 +181,9 @@ export default function VelascoPOS_Ultimate() {
     }
     if (imprimir) {
         setTicketImpresion({ items: [...carrito], total: totalVenta, fecha: new Date().toLocaleString(), vendedor: session.user.email, metodo: metodoPago });
-        setTimeout(() => { window.print(); setCarrito([]); fetchData(); }, 500);
+        setTimeout(() => { window.print(); setCarrito([]); setPagoCon(''); fetchData(); }, 500);
     } else {
-        showMsg("¡VENTA COMPLETADA! 🚀");
+        showMsg("¡VENTA COMPLETADA!");
         setCarrito([]);
         fetchData();
     }
@@ -259,7 +283,7 @@ export default function VelascoPOS_Ultimate() {
 
       <div id="tk-gh">
           <center>
-            <h2 className="font-bold">VELASCO DIGITAL</h2>
+            <h2 className="font-bold">VD POS</h2>
             <p style={{fontSize: '9px'}}>Atendió: {ticketImpresion.vendedor}</p>
             <p style={{fontSize: '9px'}}>Pago: {ticketImpresion.metodo.toUpperCase()}</p>
             <p>----------------------------</p>
@@ -382,13 +406,42 @@ export default function VelascoPOS_Ultimate() {
             
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 gap-3 content-start">
                 {catalogoFiltrado.map(p => (
-                <button key={p.id} onClick={() => agregarAlCarrito(p)} className={`bg-white p-5 rounded-[2rem] shadow-sm border text-left flex flex-col justify-between h-36 transform transition-all hover:scale-105 active:scale-95 ${p.stock < 5 ? 'border-red-200 bg-red-50/20' : 'border-slate-100'}`}>
-                    <div>
-                        <h3 className="font-black text-slate-800 uppercase text-[10px] leading-tight mb-2 h-8 overflow-hidden">{p.nombre}</h3>
-                        <p className="text-blue-600 font-black text-lg tracking-tighter">${parseFloat(p.precio).toFixed(2)}</p>
-                    </div>
-                    <span className={`text-[8px] font-black px-2 py-1 rounded-lg w-fit ${p.stock < 5 ? 'bg-red-600 text-white animate-pulse' : 'bg-green-100 text-green-600'}`}>STOCK: {p.stock}</span>
-                </button>
+                <button 
+  key={p.id} 
+  onClick={() => agregarAlCarrito(p)} 
+  className={`bg-white p-4 rounded-[2.5rem] shadow-sm border text-left flex flex-col justify-between h-40 transform transition-all hover:scale-105 active:scale-95 ${p.stock < 5 ? 'border-red-200 bg-red-50/20' : 'border-slate-100'}`}
+>
+  <div className="flex gap-3 items-start w-full">
+      {/* Lógica de Imagen: Si existe la muestra, si no, cuadro gris estilo VD POS */}
+      {p.imagen_url ? (
+          <img 
+              src={p.imagen_url} 
+              alt={p.nombre} 
+              className="w-14 h-14 rounded-2xl object-cover shadow-inner border border-slate-50" 
+          />
+      ) : (
+          <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center text-[7px] text-slate-400 font-black uppercase text-center p-1 border border-dashed border-slate-200">
+              Sin Foto
+          </div>
+      )}
+      
+      <div className="flex-1 overflow-hidden">
+          <h3 className="font-black text-slate-800 uppercase text-[9px] leading-tight mb-1 truncate">
+              {p.nombre}
+          </h3>
+          <p className="text-blue-600 font-black text-base tracking-tighter">
+              ${parseFloat(p.precio).toFixed(2)}
+          </p>
+      </div>
+  </div>
+
+  <div className="w-full flex justify-between items-center mt-2">
+      <span className={`text-[8px] font-black px-2 py-1 rounded-lg ${p.stock < 5 ? 'bg-red-600 text-white animate-pulse' : 'bg-green-100 text-green-600'}`}>
+          STOCK: {p.stock}
+      </span>
+      {p.imagen_url && <span className="text-[10px]">📸</span>}
+  </div>
+</button>
                 ))}
             </div>
           </section>
@@ -408,6 +461,32 @@ export default function VelascoPOS_Ultimate() {
             </div>
             
             <div className="p-6 bg-slate-900 text-white md:rounded-t-[3rem] shadow-2xl">
+              {/* CALCULADORA DE CAMBIO VD POS */}
+{metodoPago === 'efectivo' && (
+  <div className="mb-4 animate-in slide-in-from-right-5 px-6">
+    <p className="text-[8px] font-black text-blue-400 uppercase mb-2 ml-2">¿Con cuánto paga?</p>
+    <div className="relative">
+      <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-400">$</span>
+      <input 
+        type="number" 
+        placeholder="Monto de efectivo..." 
+        className="w-full bg-slate-800 text-white p-4 pl-8 rounded-2xl font-black text-xl outline-none border-2 border-transparent focus:border-green-500 transition-all shadow-inner"
+        value={pagoCon}
+        onChange={(e) => setPagoCon(e.target.value)}
+      />
+    </div>
+    
+    {pagoCon > 0 && (
+      <div className="mt-3 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex justify-between items-center">
+        <span className="text-[9px] font-black text-emerald-400 uppercase">Cambio a devolver:</span>
+        <span className="text-2xl font-black text-emerald-400 tracking-tighter">
+          ${(pagoCon - (carrito.reduce((a,b)=>a+(b.precio*b.cant),0) * (ajustes.aplicar_isr ? 1.16 : 1))).toFixed(2)}
+        </span>
+      </div>
+    )}
+  </div>
+)}
+
               <div className="flex gap-2 mb-4">
                 <button onClick={() => setMetodoPago('efectivo')} className={`flex-1 py-2 rounded-xl text-[9px] font-black border ${metodoPago === 'efectivo' ? 'bg-blue-600 border-blue-500' : 'border-slate-700 text-slate-500'}`}>EFECTIVO</button>
                 <button onClick={() => setMetodoPago('tarjeta')} className={`flex-1 py-2 rounded-xl text-[9px] font-black border ${metodoPago === 'tarjeta' ? 'bg-indigo-600 border-indigo-500' : 'border-slate-700 text-slate-500'}`}>TARJETA</button>
@@ -515,7 +594,7 @@ export default function VelascoPOS_Ultimate() {
                     </h2>
                     <div className="space-y-4">
                         <div className="space-y-1">
-                            <p className="text-[8px] font-black text-blue-400 uppercase ml-2">Nombre del Negocio</p>
+                            <p className="text-[8px] font-black text-blue-400 uppercase ml-2">PROVEEDOR</p>
                             <input type="text" placeholder="Ej. Coca-Cola México" className="w-full bg-slate-800 text-white p-4 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-blue-500 transition-all" value={nuevoProv.nombre} onChange={e => setNuevoProv({...nuevoProv, nombre: e.target.value})}/>
                         </div>
                         <div className="space-y-1">
@@ -525,7 +604,7 @@ export default function VelascoPOS_Ultimate() {
                         <button onClick={async () => {
                             if(!nuevoProv.nombre || !profile?.empresa_id) return showMsg("Falta el nombre.", "error");
                             await supabase.from('proveedores').insert([{...nuevoProv, empresa_id: profile.empresa_id}]);
-                            showMsg("¡NUEVO PROVEEDOR REGISTRADO! 🤝");
+                            showMsg("¡NUEVO PROVEEDOR REGISTRADO!");
                             setNuevoProv({nombre:'', contacto:'', categoria:''});
                             fetchData();
                         }} className="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px] tracking-widest mt-4">Dar de Alta</button>
@@ -555,7 +634,23 @@ export default function VelascoPOS_Ultimate() {
               <div className="space-y-4">
                 <input type="text" placeholder="Nombre del Producto" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none text-black" value={nuevoProd.nombre} onChange={e => setNuevoProd({...nuevoProd, nombre: e.target.value})}/>
                 <input type="text" placeholder="Código de Barras" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none text-black" value={nuevoProd.barcode} onChange={e => setNuevoProd({...nuevoProd, barcode: e.target.value})}/>
-                
+                {/* SECCIÓN DE CARGA DE IMAGEN ESTILO IPHONE */}
+<div className="space-y-1">
+    <p className="text-[8px] font-black text-slate-400 uppercase ml-2">Foto del Producto (Opcional)</p>
+    <input 
+        type="file" 
+        accept="image/*" 
+        capture="environment" 
+        className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-[10px] text-black border-2 border-transparent focus:border-blue-500 outline-none transition-all file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-blue-100 file:text-blue-600" 
+        onChange={(e) => {
+            if(e.target.files[0]) {
+                setFile(e.target.files[0]);
+                showMsg("IMAGEN LISTA PARA SUBIR 📸");
+            }
+        }}
+    />
+</div>
+
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                         <p className="text-[8px] font-black text-slate-400 uppercase ml-2">Costo Compra ($)</p>
@@ -588,15 +683,34 @@ export default function VelascoPOS_Ultimate() {
                 </div>
 
                 <button onClick={async () => {
-                    if(!profile?.empresa_id) return showMsg("Error de sesión", "error");
-                    const finalStock = parseInt(nuevoProd.stock) || 0;
-                    // Agregamos precio_compra a la inserción
-                    const { error } = await supabase.from('productos').insert([{...nuevoProd, stock: finalStock, empresa_id: profile.empresa_id}]);
-                    if (error) return showMsg("Error al guardar", "error");
-                    showMsg("¡PRODUCTO AGREGADO AL STOCK! 📦");
-                    setNuevoProd({nombre:'', precio:'', stock: '', barcode: '', precio_compra: ''});
-                    fetchData();
-                }} className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px] tracking-widest mt-2">Añadir al Catálogo</button>
+    if(!profile?.empresa_id) return showMsg("Error de sesión", "error");
+    
+    // 1. Iniciamos subida de imagen si el usuario seleccionó una
+    let url = null;
+    if (file) {
+        url = await uploadImagen(file); 
+    }
+
+    const finalStock = parseInt(nuevoProd.stock) || 0;
+
+    // 2. Insertamos en la base de datos incluyendo el link de la imagen
+    const { error } = await supabase.from('productos').insert([{
+        ...nuevoProd, 
+        stock: finalStock, 
+        empresa_id: profile.empresa_id,
+        imagen_url: url // <--- Este es el campo nuevo en tu tabla
+    }]);
+
+    if (error) return showMsg("Error al guardar", "error");
+    
+    // 3. Limpiamos todo para el siguiente producto
+    showMsg("¡PRODUCTO AGREGADO CON ÉXITO!");
+    setNuevoProd({nombre:'', precio:'', stock: '', barcode: '', precio_compra: ''});
+    setFile(null); // Reseteamos el selector de archivos
+    fetchData();
+}} className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px] tracking-widest mt-2">
+    Añadir al Catálogo
+</button>
               </div>
             </div>
 
@@ -624,12 +738,19 @@ export default function VelascoPOS_Ultimate() {
                                 });
                             }}/>
                             <button onClick={async () => { 
-                                if(confirm("¿Eliminar?")) { 
-                                    await supabase.from('productos').delete().eq('id', p.id); 
-                                    fetchData(); 
-                                    showMsg("PRODUCTO ELIMINADO", "error");
-                                } 
-                            }} className="text-red-500 font-black text-[9px] uppercase border px-3 py-2 rounded-lg">Borrar</button>
+    // Quitamos el confirm nativo para que sea acción directa o puedes armar un modal después
+    const { error } = await supabase.from('productos').delete().eq('id', p.id); 
+    
+    if (error) {
+        showMsg("Error al eliminar", "error");
+    } else {
+        fetchData(); 
+        // Usamos el tipo 'success' para que salga con el diseño limpio de iPhone que ya programaste
+        showMsg("¡PRODUCTO ELIMINADO EXITOSAMENTE! 🗑️", "success"); 
+    }
+}} className="bg-red-50 text-red-500 font-black text-[9px] uppercase px-4 py-2 rounded-xl hover:bg-red-500 hover:text-white transition-all border border-red-100">
+    Eliminar
+</button>
                         </div>
                     </div>
                 ))}
