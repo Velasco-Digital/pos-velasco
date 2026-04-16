@@ -404,11 +404,8 @@ const uploadImagen = async (file) => {
             </div>
         </div>
     )}
-           </div>
-          </div>
         </main>
       )}
-
 
       {/* VISTA: POS (CAJA) */}
       {vista === 'pos' && (
