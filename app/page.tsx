@@ -402,8 +402,6 @@ const uploadImagen = async (file) => {
                     </div>
                 ))}
             </div>
-        </div>
-    )}
         </main>
       )}
 
