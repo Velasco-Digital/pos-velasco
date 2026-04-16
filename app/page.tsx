@@ -403,14 +403,8 @@ const uploadImagen = async (file) => {
                 ))}
             </div>
         </div>
-    )}
-    {/* ESTOS CIERRES SON LOS QUE FALTABAN ABAJO DEL DASHBOARD */}
-            </div> 
-        </div>
     </main>
 )}
-
-
   {/* VISTA: POS (CAJA) */}
       {vista === 'pos' && (
         <main className="flex-1 flex flex-col md:flex-row overflow-hidden animate-in fade-in">
