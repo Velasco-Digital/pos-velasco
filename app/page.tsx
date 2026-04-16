@@ -884,8 +884,6 @@ const uploadImagen = async (file) => {
           </div>
         </main>
       )}
-
-      </div>
+    )} 
   );
 }
-
