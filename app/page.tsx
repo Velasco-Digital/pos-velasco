@@ -418,7 +418,7 @@ const uploadImagen = async (file) => {
                 const p = catalogo.find(x => x.barcode === inputBarras); 
                 if(p) { agregarAlCarrito(p); setInputBarras(''); }
             }} className="mb-4 relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">🔍</span>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></span>
                 <input 
                     type="text" 
                     placeholder="Buscar por nombre o escanear..." 
@@ -464,7 +464,7 @@ const uploadImagen = async (file) => {
       <span className={`text-[8px] font-black px-2 py-1 rounded-lg ${p.stock < 5 ? 'bg-red-600 text-white animate-pulse' : 'bg-green-100 text-green-600'}`}>
           STOCK: {p.stock}
       </span>
-      {p.imagen_url && <span className="text-[10px]">📸</span>}
+      {p.imagen_url && <span className="text-[10px]"></span>}
   </div>
 </button>
                 ))}
