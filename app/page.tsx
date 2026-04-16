@@ -185,6 +185,7 @@ const uploadImagen = async (file) => {
     } else {
         showMsg("¡VENTA COMPLETADA!");
         setCarrito([]);
+        setPagoCon('');
         fetchData();
     }
   };
@@ -446,7 +447,7 @@ const uploadImagen = async (file) => {
             </div>
           </section>
 
-          <section className="w-full md:w-80 lg:w-96 bg-white border-l shadow-2xl flex flex-col h-[45vh] md:h-full no-print">
+          <section className="w-full md:w-80 lg:w-96 bg-white border-l shadow-2xl flex flex-col h-[45vh] md:h-full overflow-y-auto no-print">
             <div className="p-5 bg-slate-50 border-b text-[10px] font-black text-slate-400 uppercase tracking-widest">Carrito de Venta</div>
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {carrito.map(i => (
@@ -461,31 +462,31 @@ const uploadImagen = async (file) => {
             </div>
             
             <div className="p-6 bg-slate-900 text-white md:rounded-t-[3rem] shadow-2xl">
-              {/* CALCULADORA DE CAMBIO VD POS */}
+              {/* CALCULADORA DE CAMBIO COMPACTA VD POS */}
 {metodoPago === 'efectivo' && (
-  <div className="mb-4 animate-in slide-in-from-right-5 px-6">
-    <p className="text-[8px] font-black text-blue-400 uppercase mb-2 ml-2">¿Con cuánto paga?</p>
+  <div className="mb-2 animate-in slide-in-from-right-5 px-6">
+    <p className="text-[7px] font-black text-blue-400 uppercase mb-1 ml-1">¿Con cuánto paga?</p>
     <div className="relative">
-      <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-400">$</span>
       <input 
         type="number" 
-        placeholder="Monto de efectivo..." 
-        className="w-full bg-slate-800 text-white p-4 pl-8 rounded-2xl font-black text-xl outline-none border-2 border-transparent focus:border-green-500 transition-all shadow-inner"
+        placeholder="Monto..." 
+        className="w-full bg-slate-800 text-white p-3 rounded-xl font-black text-lg outline-none border-2 border-transparent focus:border-green-500 transition-all shadow-inner"
         value={pagoCon}
         onChange={(e) => setPagoCon(e.target.value)}
       />
     </div>
     
     {pagoCon > 0 && (
-      <div className="mt-3 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex justify-between items-center">
-        <span className="text-[9px] font-black text-emerald-400 uppercase">Cambio a devolver:</span>
-        <span className="text-2xl font-black text-emerald-400 tracking-tighter">
+      <div className="mt-2 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex justify-between items-center">
+        <span className="text-[8px] font-black text-emerald-400 uppercase">Cambio:</span>
+        <span className="text-xl font-black text-emerald-400 tracking-tighter">
           ${(pagoCon - (carrito.reduce((a,b)=>a+(b.precio*b.cant),0) * (ajustes.aplicar_isr ? 1.16 : 1))).toFixed(2)}
         </span>
       </div>
     )}
   </div>
 )}
+
 
               <div className="flex gap-2 mb-4">
                 <button onClick={() => setMetodoPago('efectivo')} className={`flex-1 py-2 rounded-xl text-[9px] font-black border ${metodoPago === 'efectivo' ? 'bg-blue-600 border-blue-500' : 'border-slate-700 text-slate-500'}`}>EFECTIVO</button>
