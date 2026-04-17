@@ -20,7 +20,12 @@ export default function VelascoPOS_Ultimate() {
   
   const [fechaConsulta, setFechaConsulta] = useState(new Date().toLocaleDateString('en-CA'));
   const [ticketImpresion, setTicketImpresion] = useState({ items: [], total: 0, fecha: '', vendedor: '', metodo: '' });
-  const [nuevoProd, setNuevoProd] = useState({ nombre: '', precio: '', stock: '', barcode: '' });
+  const [nuevoProd, setNuevoProd] = useState({ 
+  nombre: '', 
+  precio: '', 
+  stock: '', 
+  barcode: '', 
+  precio_compra: '' });
   const [file, setFile] = useState(null); // Para guardar la foto antes de subirla
   const [pagoCon, setPagoCon] = useState(''); // Cantidad con la que paga el cliente
   const [inputBarras, setInputBarras] = useState('');
@@ -358,10 +363,33 @@ const uploadImagen = async (file) => {
                     <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Utilidad Neta</p>
                     <h2 className={`text-2xl font-black ${utilidadNeta >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>${utilidadNeta.toFixed(2)}</h2>
                 </div>
-                <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-red-100">
-                    <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Alertas Stock</p>
-                    <h2 className="text-2xl font-black text-red-600">{productosBajos.length} Prod.</h2>
+                <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-red-100 min-h-[140px] flex flex-col justify-between">
+    <div>
+        <p className="text-[9px] font-black text-slate-400 uppercase mb-1">Alertas Stock</p>
+        <h2 className="text-2xl font-black text-red-600">{productosBajos.length} Prod.</h2>
+    </div>
+    
+    {/* LISTADO DETALLADO DE PRODUCTOS EN ROJO */}
+    {productosBajos.length > 0 && (
+        <div className="mt-3 space-y-1 border-t border-red-50 pt-2">
+            {productosBajos.slice(0, 3).map(p => (
+                <div key={p.id} className="flex justify-between items-center gap-2">
+                    <span className="text-[8px] font-black text-red-700 uppercase truncate">
+                        ⚠️ {p.nombre}
+                    </span>
+                    <span className="text-[9px] font-black bg-red-100 text-red-600 px-2 py-0.5 rounded-lg">
+                        {p.stock}
+                    </span>
                 </div>
+            ))}
+            {productosBajos.length > 3 && (
+                <p className="text-[7px] text-slate-400 font-bold italic text-center mt-1">
+                    + {productosBajos.length - 3} artículos adicionales
+                </p>
+            )}
+        </div>
+    )}
+</div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
