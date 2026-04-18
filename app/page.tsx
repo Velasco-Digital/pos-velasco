@@ -193,6 +193,28 @@ const uploadImagen = async (file) => {
         setPagoCon('');
         fetchData();
     }
+  }; // <--- Aquí termina finalizarVenta
+
+  // --- INYECTA AQUÍ LA NUEVA FUNCIÓN ---
+  const registrarComisionServicio = async (tipo) => {
+    if (!profile?.empresa_id) return;
+
+    const comisionFija = 10.00; // Tu ganancia por trámite
+    
+    const { error } = await supabase.from('ventas').insert([{ 
+        items: [{ nombre: `COMISION: ${tipo.toUpperCase()}`, precio: comisionFija, cant: 1 }], 
+        total: comisionFija, 
+        vendedor: session.user.email,
+        metodo_pago: 'efectivo',
+        empresa_id: profile.empresa_id 
+    }]);
+
+    if (error) {
+        showMsg("Error al registrar comisión", "error");
+    } else {
+        showMsg(`¡COMISIÓN DE ${tipo} REGISTRADA! +$${comisionFija}`);
+        fetchData(); 
+    }
   };
 
   // Filtros de interfaz (Calculados en el cliente)
@@ -328,23 +350,37 @@ const uploadImagen = async (file) => {
             <span className="text-[8px] text-white/50 uppercase font-bold">Sesión: {rol}</span>
         </div>
         <div className="flex gap-1 bg-slate-800 p-1 rounded-2xl w-full sm:w-auto overflow-x-auto">
-            {rol === 'admin' && (
-                <button onClick={() => setVista('dashboard')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'dashboard' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>DASHBOARD</button>
-            )}
-            <button onClick={() => setVista('pos')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'pos' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>CAJA</button>
-            
-            {rol === 'admin' && (
-                <>
-                <button onClick={() => setVista('inventario')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'inventario' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>STOCK</button>
-                <button onClick={() => setVista('proveedores')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'proveedores' ? 'bg-orange-600 text-white' : 'text-slate-400'}`}>PROVEEDORES</button>
-                <button onClick={() => setVista('corte')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'corte' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>CORTE</button>
-                {/* BOTON NUEVO: AJUSTES */}
-                <button onClick={() => setVista('ajustes')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'ajustes' ? 'bg-slate-700 text-white' : 'text-slate-400'}`}>AJUSTES</button>
-                </>
-            )}
-        </div>
-        <button onClick={() => supabase.auth.signOut().then(()=>window.location.reload())} className="text-red-500 font-bold text-[9px] uppercase">Salir</button>
-      </nav>
+    {/* 1. CAJA SE QUEDA IGUAL */}
+    <button onClick={() => setVista('pos')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'pos' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>CAJA</button>
+    
+    {/* 2. AQUÍ INSERTAMOS SERVICIOS (Al lado de caja) */}
+    <button onClick={() => setVista('servicios')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'servicios' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>SERVICIOS</button>
+    
+    {rol === 'admin' && (
+        <>
+        <button onClick={() => setVista('dashboard')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'dashboard' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>DASHBOARD</button>
+        <button onClick={() => setVista('inventario')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'inventario' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>STOCK</button>
+        <button onClick={() => setVista('proveedores')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'proveedores' ? 'bg-orange-600 text-white' : 'text-slate-400'}`}>PROVEEDORES</button>
+        <button onClick={() => setVista('corte')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'corte' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>CORTE</button>
+        {/* NOTA: Aquí ya quitamos el botón de texto de AJUSTES */}
+        </>
+    )}
+</div>
+
+<div className="flex items-center gap-4">
+    {/* 3. EL ENGRANAJE (Aparece al final, antes de Salir) */}
+    {rol === 'admin' && (
+        <button onClick={() => setVista('ajustes')} className={`p-2 rounded-xl transition-all ${vista === 'ajustes' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-white'}`}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+            </svg>
+        </button>
+    )}
+    
+    {/* 4. EL BOTÓN DE SALIR (Este ya lo tienes en la línea 346) */}
+    <button onClick={() => supabase.auth.signOut().then(()=>window.location.reload())} className="text-red-500 font-bold text-[9px] uppercase">Salir</button>
+</div>
+
 
       {/* VISTA: DASHBOARD */}
       {vista === 'dashboard' && (
@@ -861,6 +897,74 @@ const uploadImagen = async (file) => {
           </div>
         </main>
       )}
+{/* VISTA: SERVICIOS (RECARGAS Y PAGOS) */}
+{vista === 'servicios' && (
+  <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in fade-in">
+    <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex flex-col mb-8">
+        <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em] mb-1">Módulo de Ingresos Extra</span>
+        <h2 className="text-3xl font-black italic text-slate-800 uppercase tracking-tighter">Centro de Servicios VD</h2>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* CARD: RECARGAS ELECTRÓNICAS */}
+        <div className="bg-white p-8 rounded-[3rem] shadow-xl border-t-8 border-blue-500 group hover:scale-[1.02] transition-all duration-300">
+          <div className="flex justify-between items-start mb-6">
+            <div className="bg-blue-50 p-4 rounded-2xl text-3xl">📱</div>
+            <span className="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">Conexión Activa</span>
+          </div>
+          <h3 className="font-black text-xl mb-2 text-slate-800 uppercase">Recargas Electrónicas</h3>
+          <p className="text-[10px] text-slate-400 font-bold mb-8 leading-relaxed">
+            Vende tiempo aire de Telcel, AT&T, Movistar y paquetes de datos. Incrementa el flujo de clientes en tu local.
+          </p>
+          {/* BOTÓN DE RECARGAS ACTUALIZADO */}
+<button 
+  onClick={() => {
+    window.open('https://portal.taecel.com/', '_blank');
+    registrarComisionServicio('Recarga');
+  }} 
+  className="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-lg shadow-blue-500/30 uppercase text-[10px] tracking-widest hover:bg-blue-700 transition-colors"
+>
+  Abrir Portal y Registrar Comisión
+</button>
+        </div>
+
+        {/* CARD: PAGO DE SERVICIOS */}
+        <div className="bg-white p-8 rounded-[3rem] shadow-xl border-t-8 border-emerald-500 group hover:scale-[1.02] transition-all duration-300">
+          <div className="flex justify-between items-start mb-6">
+            <div className="bg-emerald-50 p-4 rounded-2xl text-3xl">⚡</div>
+            <span className="bg-emerald-100 text-emerald-600 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest">CFE / IZZI / AGUA</span>
+          </div>
+          <h3 className="font-black text-xl mb-2 text-slate-800 uppercase">Pago de Servicios</h3>
+          <p className="text-[10px] text-slate-400 font-bold mb-8 leading-relaxed">
+            Recibe pagos de recibos de luz, agua e internet. Convierte tu negocio en un centro de pagos multiservicios.
+          </p>
+          {/* BOTÓN DE SERVICIOS ACTUALIZADO */}
+<button 
+  onClick={() => {
+    registrarComisionServicio('Pago de Servicio');
+    showMsg("Recuerda cobrar el recibo en físico", "success");
+  }}
+  className="w-full bg-emerald-600 text-white font-black py-5 rounded-2xl shadow-lg shadow-emerald-500/30 uppercase text-[10px] tracking-widest hover:bg-emerald-700 transition-colors"
+>
+  Registrar Pago de Recibo
+</button>
+        </div>
+      </div>
+
+      {/* BANNER DE RECORDATORIO DE COMISIÓN */}
+      <div className="bg-slate-900 p-6 rounded-[2.5rem] text-white flex flex-col md:flex-row justify-between items-center gap-4 border-b-4 border-blue-600">
+          <div className="flex items-center gap-3">
+            <span className="bg-blue-600/20 p-2 rounded-lg text-blue-400 text-xs">⚠️</span>
+            <p className="text-[10px] font-black uppercase tracking-wider">Recordatorio de Ingeniería:</p>
+          </div>
+          <p className="text-[11px] font-bold opacity-80 italic text-center md:text-right">
+            Se recomienda cobrar una comisión fija de <span className="text-blue-400">$10.00 MXN</span> por cada trámite realizado.
+          </p>
+      </div>
+    </div>
+  </main>
+)}
 
       {/* VISTA: AJUSTES (LIMPIA Y FUNCIONAL) */}
       {vista === 'ajustes' && (
