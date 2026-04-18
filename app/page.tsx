@@ -1013,7 +1013,7 @@ const uploadImagen = async (file) => {
                 </div>
               </div>
 
-              <div className="mt-10 pt-6 border-t border-dashed text-center">
+                            <div className="mt-10 pt-6 border-t border-dashed text-center">
                  <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.3em]">VD POS - Velasco Digital Co.</p>
               </div>
             </div>
