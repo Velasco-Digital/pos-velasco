@@ -152,10 +152,13 @@ const uploadImagen = async (file) => {
     if (ahora - ultimoEscaneo.current < 500) return;
     ultimoEscaneo.current = ahora;
 
-    if(p.stock <= 0) return showMsg("¡Sin existencias!", "error");
+    // Validación al agregar: No permite agregar más de lo que hay en stock localmente
+    const enCarrito = carrito.find(i => i.id === p.id);
+    const cantActual = enCarrito ? enCarrito.cant : 0;
+
+    if(p.stock <= cantActual) return showMsg(`¡Solo quedan ${p.stock} pz!`, "error");
     
-    const ex = carrito.find(i => i.id === p.id);
-    if (ex) {
+    if (enCarrito) {
       setCarrito(carrito.map(i => i.id === p.id ? {...i, cant: i.cant + 1} : i));
     } else {
       setCarrito([...carrito, {...p, cant: 1}]);
@@ -163,9 +166,18 @@ const uploadImagen = async (file) => {
   };
 
 
-  // 5. Ventas con etiqueta de empresa (IMPLEMENTACIÓN DE AJUSTE ISR)
+  // 5. Ventas con etiqueta de empresa (IMPLEMENTACIÓN DE AJUSTE ISR Y BLOQUEO DE STOCK NEGATIVO)
   const finalizarVenta = async (imprimir = false) => {
     if (carrito.length === 0 || !profile?.empresa_id) return;
+
+    // --- BLOQUEO DE STOCK NEGATIVO ---
+    for (const item of carrito) {
+        const prodOriginal = catalogo.find(p => p.id === item.id);
+        if (prodOriginal && prodOriginal.stock < item.cant) {
+            return showMsg(`Stock insuficiente: ${item.nombre} (Disponibles: ${prodOriginal.stock})`, "error");
+        }
+    }
+
     const subtotal = carrito.reduce((a,b)=>a+(b.precio*b.cant), 0);
     
     // Si el ajuste está activo usa 1.16, si no, usa 1 (sin cambios)
@@ -351,29 +363,22 @@ const uploadImagen = async (file) => {
         </div>
         <div className="flex gap-1 bg-slate-800 p-1 rounded-2xl w-full sm:w-auto overflow-x-auto">
     
-    {/* 1. DASHBOARD AL PRINCIPIO */}
     <button onClick={() => setVista('dashboard')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'dashboard' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>DASHBOARD</button>
 
-    {/* 2. CAJA (POS) */}
     <button onClick={() => setVista('pos')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'pos' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>CAJA</button>
     
-    {/* 3. SERVICIOS */}
     <button onClick={() => setVista('servicios')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'servicios' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>SERVICIOS</button>
     
     {rol === 'admin' && (
         <>
-        {/* 4. STOCK */}
         <button onClick={() => setVista('inventario')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'inventario' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>STOCK</button>
-        {/* 5. PROVEEDORES */}
         <button onClick={() => setVista('proveedores')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'proveedores' ? 'bg-orange-600 text-white' : 'text-slate-400'}`}>PROVEEDORES</button>
-        {/* 6. CORTE */}
         <button onClick={() => setVista('corte')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'corte' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>CORTE</button>
         </>
     )}
 </div>
 
 <div className="flex items-center gap-4">
-    {/* EL ENGRANAJE DE AJUSTES */}
     {rol === 'admin' && (
         <button onClick={() => setVista('ajustes')} className={`p-2 rounded-xl transition-all ${vista === 'ajustes' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-white'}`}>
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -830,14 +835,12 @@ const uploadImagen = async (file) => {
                                 });
                             }}/>
                             <button onClick={async () => { 
-    // Quitamos el confirm nativo para que sea acción directa o puedes armar un modal después
     const { error } = await supabase.from('productos').delete().eq('id', p.id); 
     
     if (error) {
         showMsg("Error al eliminar", "error");
     } else {
         fetchData(); 
-        // Usamos el tipo 'success' para que salga con el diseño limpio de iPhone que ya programaste
         showMsg("¡PRODUCTO ELIMINADO EXITOSAMENTE! 🗑️", "success"); 
     }
 }} className="bg-red-50 text-red-500 font-black text-[9px] uppercase px-4 py-2 rounded-xl hover:bg-red-500 hover:text-white transition-all border border-red-100">
