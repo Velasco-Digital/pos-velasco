@@ -380,6 +380,7 @@ const uploadImagen = async (file) => {
     {/* 4. EL BOTÓN DE SALIR (Este ya lo tienes en la línea 346) */}
     <button onClick={() => supabase.auth.signOut().then(()=>window.location.reload())} className="text-red-500 font-bold text-[9px] uppercase">Salir</button>
 </div>
+</nav>
 
 
       {/* VISTA: DASHBOARD */}
@@ -1017,6 +1018,7 @@ const uploadImagen = async (file) => {
                  <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.3em]">VD POS - Velasco Digital Co.</p>
               </div>
             </div>
+          </div>
         </main>
       )}
     </div>
