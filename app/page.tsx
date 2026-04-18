@@ -350,25 +350,30 @@ const uploadImagen = async (file) => {
             <span className="text-[8px] text-white/50 uppercase font-bold">Sesión: {rol}</span>
         </div>
         <div className="flex gap-1 bg-slate-800 p-1 rounded-2xl w-full sm:w-auto overflow-x-auto">
-    {/* 1. CAJA SE QUEDA IGUAL */}
+    
+    {/* 1. DASHBOARD AL PRINCIPIO */}
+    <button onClick={() => setVista('dashboard')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'dashboard' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>DASHBOARD</button>
+
+    {/* 2. CAJA (POS) */}
     <button onClick={() => setVista('pos')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'pos' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>CAJA</button>
     
-    {/* 2. AQUÍ INSERTAMOS SERVICIOS (Al lado de caja) */}
+    {/* 3. SERVICIOS */}
     <button onClick={() => setVista('servicios')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'servicios' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>SERVICIOS</button>
     
     {rol === 'admin' && (
         <>
-        <button onClick={() => setVista('dashboard')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'dashboard' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>DASHBOARD</button>
+        {/* 4. STOCK */}
         <button onClick={() => setVista('inventario')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'inventario' ? 'bg-indigo-600 text-white' : 'text-slate-400'}`}>STOCK</button>
+        {/* 5. PROVEEDORES */}
         <button onClick={() => setVista('proveedores')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'proveedores' ? 'bg-orange-600 text-white' : 'text-slate-400'}`}>PROVEEDORES</button>
+        {/* 6. CORTE */}
         <button onClick={() => setVista('corte')} className={`flex-1 sm:px-4 py-2 rounded-xl text-[9px] font-black ${vista === 'corte' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>CORTE</button>
-        {/* NOTA: Aquí ya quitamos el botón de texto de AJUSTES */}
         </>
     )}
 </div>
 
 <div className="flex items-center gap-4">
-    {/* 3. EL ENGRANAJE (Aparece al final, antes de Salir) */}
+    {/* EL ENGRANAJE DE AJUSTES */}
     {rol === 'admin' && (
         <button onClick={() => setVista('ajustes')} className={`p-2 rounded-xl transition-all ${vista === 'ajustes' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-white'}`}>
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -376,8 +381,6 @@ const uploadImagen = async (file) => {
             </svg>
         </button>
     )}
-    
-    {/* 4. EL BOTÓN DE SALIR (Este ya lo tienes en la línea 346) */}
     <button onClick={() => supabase.auth.signOut().then(()=>window.location.reload())} className="text-red-500 font-bold text-[9px] uppercase">Salir</button>
 </div>
 </nav>
