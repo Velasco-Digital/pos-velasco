@@ -33,6 +33,7 @@ export default function VelascoPOS_Ultimate() {
   const [proveedores, setProveedores] = useState([]);
   const [compras, setCompras] = useState([]);
   const [nuevoProv, setNuevoProv] = useState({ nombre: '', contacto: '', categoria: '' });
+  const [editandoProv, setEditandoProv] = useState(null); // <--- NUEVA LÍNEA: Para saber qué proveedor editamos
   const [nuevaCompra, setNuevaCompra] = useState({ proveedor_id: '', monto_total: '', detalles: '' });
 
   const [toast, setToast] = useState({ visible: false, msg: '', tipo: 'success' });
@@ -605,7 +606,7 @@ const uploadImagen = async (file) => {
         </main>
       )}
 
-      {/* VISTA: PROVEEDORES REDISEÑADA */}
+      {/* VISTA: PROVEEDORES REDISEÑADA (ACTUALIZADA CON MODIFICAR Y ELIMINAR) */}
       {vista === 'proveedores' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in slide-in-from-bottom-10">
           <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -623,14 +624,42 @@ const uploadImagen = async (file) => {
                             <p className="text-[9px] font-black text-slate-400 uppercase mb-3 ml-2">1. Selecciona el Proveedor</p>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                                 {proveedores.map(p => (
-                                    <button 
-                                        key={p.id} 
-                                        onClick={() => setNuevaCompra({...nuevaCompra, proveedor_id: p.id})}
-                                        className={`p-4 rounded-2xl border-2 transition-all text-left group ${nuevaCompra.proveedor_id === p.id ? 'border-orange-500 bg-orange-50' : 'border-slate-100 bg-slate-50 hover:border-orange-200'}`}
-                                    >
-                                        <span className={`block text-[10px] font-black uppercase ${nuevaCompra.proveedor_id === p.id ? 'text-orange-600' : 'text-slate-600'}`}>{p.nombre}</span>
-                                        <span className="text-[8px] text-slate-400 font-bold">{p.categoria || 'General'}</span>
-                                    </button>
+                                    <div key={p.id} className="relative group">
+                                        <button 
+                                            onClick={() => setNuevaCompra({...nuevaCompra, proveedor_id: p.id})}
+                                            className={`w-full p-4 rounded-2xl border-2 transition-all text-left ${nuevaCompra.proveedor_id === p.id ? 'border-orange-500 bg-orange-50' : 'border-slate-100 bg-slate-50 hover:border-orange-200'}`}
+                                        >
+                                            <span className={`block text-[10px] font-black uppercase ${nuevaCompra.proveedor_id === p.id ? 'text-orange-600' : 'text-slate-600'}`}>{p.nombre}</span>
+                                            <span className="text-[8px] text-slate-400 font-bold">{p.contacto || 'Sin contacto'}</span>
+                                        </button>
+                                        
+                                        {/* ACCIONES DE PROVEEDOR (EDITAR/BORRAR) FLOTANTES AL HACER HOVER */}
+                                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setEditandoProv(p.id);
+                                                    setNuevoProv({nombre: p.nombre, contacto: p.contacto, categoria: p.categoria});
+                                                }}
+                                                className="bg-blue-500 text-white p-1 rounded-md text-[8px] font-black"
+                                            >
+                                                EDIT
+                                            </button>
+                                            <button 
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    if(confirm(`¿Eliminar a ${p.nombre}?`)) {
+                                                        const { error } = await supabase.from('proveedores').delete().eq('id', p.id);
+                                                        if(error) showMsg("No se puede borrar: tiene pagos", "error");
+                                                        else { showMsg("PROVEEDOR ELIMINADO"); fetchData(); }
+                                                    }
+                                                }}
+                                                className="bg-red-500 text-white p-1 rounded-md text-[8px] font-black"
+                                            >
+                                                DEL
+                                            </button>
+                                        </div>
+                                    </div>
                                 ))}
                             </div>
                         </div>
@@ -651,7 +680,7 @@ const uploadImagen = async (file) => {
                             if(!nuevaCompra.proveedor_id || !nuevaCompra.monto_total || !profile?.empresa_id) return showMsg("Selecciona proveedor y monto", "error");
                             const { error } = await supabase.from('compras_proveedores').insert([{...nuevaCompra, empresa_id: profile.empresa_id}]);
                             if(error) return showMsg("Error al guardar", "error");
-                            showMsg("¡PAGO REGISTRADO EXITOSAMENTE! 💸");
+                            showMsg("¡PAGO REGISTRADO EXITOSAMENTE!");
                             setNuevaCompra({proveedor_id:'', monto_total:'', detalles:''});
                             fetchData();
                         }} className="w-full bg-orange-600 text-white font-black py-6 rounded-3xl shadow-lg shadow-orange-500/30 uppercase text-xs tracking-widest hover:bg-orange-700 transition-all">Confirmar Salida de Dinero</button>
@@ -684,28 +713,49 @@ const uploadImagen = async (file) => {
                 </div>
             </div>
 
-            {/* COLUMNA 2: ALTA DE PROVEEDORES */}
+            {/* COLUMNA 2: ALTA DE PROVEEDORES (MODIFICADA PARA EDITAR) */}
             <div className="space-y-6">
-                <div className="bg-slate-900 p-8 rounded-[3rem] shadow-2xl border-b-8 border-blue-500">
+                <div className={`p-8 rounded-[3rem] shadow-2xl border-b-8 transition-all duration-500 ${editandoProv ? 'bg-blue-600 border-white' : 'bg-slate-900 border-blue-500'}`}>
                     <h2 className="font-black text-xl mb-6 italic uppercase text-white flex items-center gap-2">
-                        <span className="bg-blue-500 p-2 rounded-xl text-white"></span> AÑADIR PROVEEDOR
+                        <span className="p-2 rounded-xl text-white">{editandoProv ? '📝' : '⚡'}</span> {editandoProv ? 'MODIFICAR DATOS' : 'AÑADIR PROVEEDOR'}
                     </h2>
                     <div className="space-y-4">
                         <div className="space-y-1">
-                            <p className="text-[8px] font-black text-blue-400 uppercase ml-2">PROVEEDOR</p>
-                            <input type="text" placeholder="Ej. Coca-Cola México" className="w-full bg-slate-800 text-white p-4 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-blue-500 transition-all" value={nuevoProv.nombre} onChange={e => setNuevoProv({...nuevoProv, nombre: e.target.value})}/>
+                            <p className="text-[8px] font-black text-blue-300 uppercase ml-2">NOMBRE EMPRESA</p>
+                            <input type="text" placeholder="Ej. Coca-Cola México" className="w-full bg-white/10 text-white p-4 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-white transition-all" value={nuevoProv.nombre} onChange={e => setNuevoProv({...nuevoProv, nombre: e.target.value})}/>
                         </div>
                         <div className="space-y-1">
-                            <p className="text-[8px] font-black text-blue-400 uppercase ml-2">Contacto / Teléfono</p>
-                            <input type="text" placeholder="Ej. 33 1234 5678" className="w-full bg-slate-800 text-white p-4 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-blue-500 transition-all" value={nuevoProv.contacto} onChange={e => setNuevoProv({...nuevoProv, contacto: e.target.value})}/>
+                            <p className="text-[8px] font-black text-blue-300 uppercase ml-2">TELÉFONO O CONTACTO</p>
+                            <input type="text" placeholder="Ej. 33 1234 5678" className="w-full bg-white/10 text-white p-4 rounded-2xl font-bold outline-none border-2 border-transparent focus:border-white transition-all" value={nuevoProv.contacto} onChange={e => setNuevoProv({...nuevoProv, contacto: e.target.value})}/>
                         </div>
-                        <button onClick={async () => {
-                            if(!nuevoProv.nombre || !profile?.empresa_id) return showMsg("Falta el nombre.", "error");
-                            await supabase.from('proveedores').insert([{...nuevoProv, empresa_id: profile.empresa_id}]);
-                            showMsg("¡NUEVO PROVEEDOR REGISTRADO!");
-                            setNuevoProv({nombre:'', contacto:'', categoria:''});
-                            fetchData();
-                        }} className="w-full bg-blue-600 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px] tracking-widest mt-4">Dar de Alta</button>
+                        <div className="flex gap-2">
+                            <button onClick={async () => {
+                                if(!nuevoProv.nombre || !profile?.empresa_id) return showMsg("Falta el nombre.", "error");
+                                
+                                if(editandoProv) {
+                                    // LOGICA DE ACTUALIZACIÓN
+                                    const { error } = await supabase.from('proveedores').update(nuevoProv).eq('id', editandoProv);
+                                    if(error) showMsg("Error al actualizar", "error");
+                                    else {
+                                        showMsg("¡DATOS ACTUALIZADOS!");
+                                        setEditandoProv(null);
+                                    }
+                                } else {
+                                    // LOGICA DE INSERCIÓN ORIGINAL
+                                    await supabase.from('proveedores').insert([{...nuevoProv, empresa_id: profile.empresa_id}]);
+                                    showMsg("¡NUEVO PROVEEDOR REGISTRADO!");
+                                }
+                                
+                                setNuevoProv({nombre:'', contacto:'', categoria:''});
+                                fetchData();
+                            }} className={`w-full font-black py-5 rounded-2xl shadow-xl uppercase text-[10px] tracking-widest mt-4 transition-all ${editandoProv ? 'bg-white text-blue-600' : 'bg-blue-600 text-white'}`}>
+                                {editandoProv ? 'Guardar Cambios' : 'Dar de Alta'}
+                            </button>
+                            
+                            {editandoProv && (
+                                <button onClick={() => { setEditandoProv(null); setNuevoProv({nombre:'', contacto:'', categoria:''}); }} className="mt-4 bg-red-500 text-white px-4 rounded-2xl font-black text-[10px]">X</button>
+                            )}
+                        </div>
                     </div>
                 </div>
                 
@@ -1030,3 +1080,4 @@ const uploadImagen = async (file) => {
     </div>
   );
 }
+
