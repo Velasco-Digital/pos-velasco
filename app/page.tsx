@@ -688,7 +688,7 @@ const uploadImagen = async (file) => {
             <div className="space-y-6">
                 <div className="bg-slate-900 p-8 rounded-[3rem] shadow-2xl border-b-8 border-blue-500">
                     <h2 className="font-black text-xl mb-6 italic uppercase text-white flex items-center gap-2">
-                        <span className="bg-blue-500 p-2 rounded-xl text-white">🤝</span> Nuevo Socio
+                        <span className="bg-blue-500 p-2 rounded-xl text-white"></span> AÑADIR PROVEEDOR
                     </h2>
                     <div className="space-y-4">
                         <div className="space-y-1">
@@ -742,7 +742,7 @@ const uploadImagen = async (file) => {
         onChange={(e) => {
             if(e.target.files[0]) {
                 setFile(e.target.files[0]);
-                showMsg("IMAGEN LISTA PARA SUBIR 📸");
+                showMsg("IMAGEN CARGADA EXITOSAMENTE");
             }
         }}
     />
@@ -841,7 +841,7 @@ const uploadImagen = async (file) => {
         showMsg("Error al eliminar", "error");
     } else {
         fetchData(); 
-        showMsg("¡PRODUCTO ELIMINADO EXITOSAMENTE! 🗑️", "success"); 
+        showMsg("¡PRODUCTO ELIMINADO EXITOSAMENTE!️", "success"); 
     }
 }} className="bg-red-50 text-red-500 font-black text-[9px] uppercase px-4 py-2 rounded-xl hover:bg-red-500 hover:text-white transition-all border border-red-100">
     Eliminar
