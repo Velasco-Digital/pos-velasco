@@ -33,10 +33,13 @@ export default function VelascoPOS_Ultimate() {
   const [proveedores, setProveedores] = useState([]);
   const [compras, setCompras] = useState([]);
   const [nuevoProv, setNuevoProv] = useState({ nombre: '', contacto: '', categoria: '' });
-  const [editandoProv, setEditandoProv] = useState(null); // <--- NUEVA LÍNEA: Para saber qué proveedor editamos
+  const [editandoProv, setEditandoProv] = useState(null); 
   const [nuevaCompra, setNuevaCompra] = useState({ proveedor_id: '', monto_total: '', detalles: '' });
 
   const [toast, setToast] = useState({ visible: false, msg: '', tipo: 'success' });
+
+  // --- NUEVA LÍNEA: ESTADO PARA EL MODAL TIPO IPHONE ---
+  const [confirmModal, setConfirmModal] = useState({ visible: false, titulo: '', accion: null });
 
   // --- NUEVA FUNCIÓN: ESTADO DE AJUSTES ---
   const [ajustes, setAjustes] = useState({ aplicar_isr: false, mostrar_top_productos: true, mostrar_ganancias: true });
@@ -340,6 +343,36 @@ const uploadImagen = async (file) => {
         </div>
       )}
 
+      {/* --- NUEVA ESTRUCTURA: MODAL DE CONFIRMACIÓN IPHONE --- */}
+      {confirmModal.visible && (
+        <div className="fixed inset-0 z-[6000] flex items-center justify-center p-6 animate-in fade-in duration-200">
+            <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setConfirmModal({visible: false, titulo: '', accion: null})}></div>
+            <div className="bg-white/90 backdrop-blur-xl w-full max-w-[270px] rounded-[1.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 text-center border border-white/20">
+                <div className="p-5">
+                    <h3 className="text-black font-black text-sm mb-1">{confirmModal.titulo}</h3>
+                    <p className="text-slate-500 text-[10px] leading-tight font-medium">Esta acción no se puede deshacer y afectará los registros vinculados.</p>
+                </div>
+                <div className="grid grid-cols-2 border-t border-slate-200">
+                    <button 
+                        onClick={() => setConfirmModal({visible: false, titulo: '', accion: null})}
+                        className="py-3 text-blue-500 font-bold text-xs border-r border-slate-200 active:bg-slate-200/50 transition-colors"
+                    >
+                        Cancelar
+                    </button>
+                    <button 
+                        onClick={() => {
+                            confirmModal.accion();
+                            setConfirmModal({visible: false, titulo: '', accion: null});
+                        }}
+                        className="py-3 text-red-500 font-black text-xs active:bg-slate-200/50 transition-colors"
+                    >
+                        Eliminar
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
       <div id="tk-gh">
           <center>
             <h2 className="font-bold">VD POS</h2>
@@ -606,7 +639,7 @@ const uploadImagen = async (file) => {
         </main>
       )}
 
-      {/* VISTA: PROVEEDORES REDISEÑADA (ACTUALIZADA CON MODIFICAR Y ELIMINAR) */}
+      {/* VISTA: PROVEEDORES REDISEÑADA (CON MODAL TIPO IPHONE) */}
       {vista === 'proveedores' && (
         <main className="flex-1 p-4 md:p-8 overflow-y-auto animate-in slide-in-from-bottom-10">
           <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -646,13 +679,18 @@ const uploadImagen = async (file) => {
                                                 EDIT
                                             </button>
                                             <button 
-                                                onClick={async (e) => {
+                                                onClick={(e) => {
                                                     e.stopPropagation();
-                                                    if(confirm(`¿Eliminar a ${p.nombre}?`)) {
-                                                        const { error } = await supabase.from('proveedores').delete().eq('id', p.id);
-                                                        if(error) showMsg("No se puede borrar: tiene pagos", "error");
-                                                        else { showMsg("PROVEEDOR ELIMINADO"); fetchData(); }
-                                                    }
+                                                    // SUSTITUCIÓN DE CONFIRM NATIVO POR MODAL IPHONE
+                                                    setConfirmModal({
+                                                        visible: true,
+                                                        titulo: `¿Eliminar a ${p.nombre}?`,
+                                                        accion: async () => {
+                                                            const { error } = await supabase.from('proveedores').delete().eq('id', p.id);
+                                                            if(error) showMsg("No se puede borrar: tiene pagos", "error");
+                                                            else { showMsg("PROVEEDOR ELIMINADO"); fetchData(); }
+                                                        }
+                                                    });
                                                 }}
                                                 className="bg-red-500 text-white p-1 rounded-md text-[8px] font-black"
                                             >
@@ -680,7 +718,7 @@ const uploadImagen = async (file) => {
                             if(!nuevaCompra.proveedor_id || !nuevaCompra.monto_total || !profile?.empresa_id) return showMsg("Selecciona proveedor y monto", "error");
                             const { error } = await supabase.from('compras_proveedores').insert([{...nuevaCompra, empresa_id: profile.empresa_id}]);
                             if(error) return showMsg("Error al guardar", "error");
-                            showMsg("¡PAGO REGISTRADO EXITOSAMENTE!");
+                            showMsg("¡PAGO REGISTRADO EXITOSAMENTE! 💸");
                             setNuevaCompra({proveedor_id:'', monto_total:'', detalles:''});
                             fetchData();
                         }} className="w-full bg-orange-600 text-white font-black py-6 rounded-3xl shadow-lg shadow-orange-500/30 uppercase text-xs tracking-widest hover:bg-orange-700 transition-all">Confirmar Salida de Dinero</button>
@@ -713,7 +751,7 @@ const uploadImagen = async (file) => {
                 </div>
             </div>
 
-            {/* COLUMNA 2: ALTA DE PROVEEDORES (MODIFICADA PARA EDITAR) */}
+            {/* COLUMNA 2: ALTA DE PROVEEDORES */}
             <div className="space-y-6">
                 <div className={`p-8 rounded-[3rem] shadow-2xl border-b-8 transition-all duration-500 ${editandoProv ? 'bg-blue-600 border-white' : 'bg-slate-900 border-blue-500'}`}>
                     <h2 className="font-black text-xl mb-6 italic uppercase text-white flex items-center gap-2">
@@ -885,17 +923,19 @@ const uploadImagen = async (file) => {
                                 });
                             }}/>
                             <button onClick={async () => { 
-    const { error } = await supabase.from('productos').delete().eq('id', p.id); 
-    
-    if (error) {
-        showMsg("Error al eliminar", "error");
-    } else {
-        fetchData(); 
-        showMsg("¡PRODUCTO ELIMINADO EXITOSAMENTE!️", "success"); 
-    }
-}} className="bg-red-50 text-red-500 font-black text-[9px] uppercase px-4 py-2 rounded-xl hover:bg-red-500 hover:text-white transition-all border border-red-100">
-    Eliminar
-</button>
+                                // SUSTITUCIÓN DE CONFIRM NATIVO EN ELIMINAR PRODUCTO
+                                setConfirmModal({
+                                    visible: true,
+                                    titulo: `¿Eliminar ${p.nombre}?`,
+                                    accion: async () => {
+                                        const { error } = await supabase.from('productos').delete().eq('id', p.id); 
+                                        if (error) showMsg("Error al eliminar", "error");
+                                        else { fetchData(); showMsg("¡ELIMINADO!"); }
+                                    }
+                                });
+                            }} className="bg-red-50 text-red-500 font-black text-[9px] uppercase px-4 py-2 rounded-xl hover:bg-red-500 hover:text-white transition-all border border-red-100">
+                                Eliminar
+                            </button>
                         </div>
                     </div>
                 ))}
@@ -1080,4 +1120,3 @@ const uploadImagen = async (file) => {
     </div>
   );
 }
-
