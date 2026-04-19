@@ -193,38 +193,61 @@ const uploadImagen = async (file) => {
       }, 1000);
   };
 
-  const generarTicketCorteProveedores = () => {
+    const generarTicketCorteProveedores = () => {
       const hoy = new Date().toLocaleDateString('en-CA');
       const pagosHoy = compras.filter(c => new Date(c.fecha).toLocaleDateString('en-CA') === hoy);
       const total = pagosHoy.reduce((acc, c) => acc + parseFloat(c.monto_total), 0);
 
+      // Creamos la ventana de impresión
       const ticketVentana = window.open('', '_blank');
+      
       ticketVentana.document.write(`
-          <div style="font-family: monospace; width: 80mm; padding: 10px;">
-              <center>
-                  <h2 style="margin:0;">CORTE PROVEEDORES</h2>
-                  <p style="font-size:10px;">VELASCO DIGITAL POS</p>
-                  <p>${hoy}</p>
-                  <hr>
-              </center>
-              ${pagosHoy.map(p => `
-                  <div style="display:flex; justify-content:space-between; font-size:11px;">
-                      <span>${p.proveedores?.nombre}</span>
-                      <span>$${parseFloat(p.monto_total).toFixed(2)}</span>
-                  </div>
-              `).join('')}
-              <hr>
-              <div style="display:flex; justify-content:space-between; font-weight:bold;">
-                  <span>TOTAL PAGADO:</span>
-                  <span>$${total.toFixed(2)}</span>
-              </div>
-              <center><p style="font-size:9px; margin-top:20px;">Control Físico de Salidas</p></center>
-          </div>
+          <html>
+            <head>
+                <title>Corte Proveedores - VD POS</title>
+                <style>
+                    body { font-family: monospace; width: 80mm; padding: 10px; color: black; }
+                    .flex { display: flex; justify-content: space-between; font-size: 12px; }
+                    hr { border: none; border-top: 1px dashed #000; margin: 10px 0; }
+                </style>
+            </head>
+            <body>
+                <center>
+                    <h2 style="margin:0;">CORTE PROVEEDORES</h2>
+                    <p style="font-size:10px; margin:2px;">VELASCO DIGITAL CO.</p>
+                    <p style="font-size:12px;">${hoy}</p>
+                    <hr>
+                </center>
+                ${pagosHoy.map(p => `
+                    <div class="flex">
+                        <span>${p.proveedores?.nombre?.substring(0,15)}</span>
+                        <span>$${parseFloat(p.monto_total).toFixed(2)}</span>
+                    </div>
+                `).join('')}
+                <hr>
+                <div class="flex" style="font-weight:bold; font-size:14px;">
+                    <span>TOTAL PAGADO:</span>
+                    <span>$${total.toFixed(2)}</span>
+                </div>
+                <center>
+                    <p style="font-size:9px; margin-top:30px;">*** FIN DEL REPORTE ***</p>
+                    <p style="font-size:8px;">Control Físico Sugerido</p>
+                </center>
+                <script>
+                    // IMPORTANTE: Esperamos a que cargue y mandamos a imprimir
+                    window.onload = function() {
+                        window.print();
+                        // No cerramos inmediatamente para evitar el error del Spooler en Android
+                        setTimeout(() => { window.close(); }, 1000);
+                    };
+                </script>
+            </body>
+          </html>
       `);
-      ticketVentana.print();
-      ticketVentana.close();
-      showMsg("CORTE PROVEEDORES IMPRESO");
+      ticketVentana.document.close(); // Indispensable para que el navegador sepa que terminó de escribir
+      showMsg("GENERANDO VISTA DE IMPRESIÓN...");
   };
+
 
 
   // 5. Ventas con etiqueta de empresa (IMPLEMENTACIÓN DE AJUSTE ISR Y BLOQUEO DE STOCK NEGATIVO)
