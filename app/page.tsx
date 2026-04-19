@@ -25,7 +25,9 @@ export default function VelascoPOS_Ultimate() {
   precio: '', 
   stock: '', 
   barcode: '', 
-  precio_compra: '' });
+  precio_compra: '',
+  unidad_medida: 'pz' // INYECCIÓN: Por defecto unidad
+  });
   const [file, setFile] = useState(null); // Para guardar la foto antes de subirla
   const [pagoCon, setPagoCon] = useState(''); // Cantidad con la que paga el cliente
   const [inputBarras, setInputBarras] = useState('');
@@ -79,6 +81,7 @@ const uploadImagen = async (file) => {
     if (session && profile?.empresa_id) {
       fetchData();
       cargarAjustes(); // <--- Cargar ajustes al iniciar
+      verificarCorteAutomaticoProv(); // INYECCIÓN: Activa el sensor de medianoche
     }
   }, [session, profile]);
 
@@ -150,23 +153,77 @@ const uploadImagen = async (file) => {
     // Referencia para evitar duplicados del escáner (Anti-rebote)
   const ultimoEscaneo = useRef(0);
 
+  // --- INYECCIÓN: LÓGICA DE BÁSCULA INTEGRADA ---
   const agregarAlCarrito = (p) => {
     const ahora = Date.now();
     // Si se intenta agregar el mismo producto en menos de 500ms, lo ignoramos
     if (ahora - ultimoEscaneo.current < 500) return;
     ultimoEscaneo.current = ahora;
 
+    let cantidadFinal = 1;
+
+    // Si el producto es de gramaje, solicita peso de báscula
+    if (p.unidad_medida === 'kg') {
+        const peso = prompt(`BÁSCULA: Ingrese peso para ${p.nombre} (Kg):`, "0.500");
+        if (peso === null || isNaN(peso) || peso <= 0) return showMsg("Operación cancelada", "error");
+        cantidadFinal = parseFloat(peso);
+    }
+
     // Validación al agregar: No permite agregar más de lo que hay en stock localmente
     const enCarrito = carrito.find(i => i.id === p.id);
     const cantActual = enCarrito ? enCarrito.cant : 0;
 
-    if(p.stock <= cantActual) return showMsg(`¡Solo quedan ${p.stock} pz!`, "error");
+    if(p.stock < (cantActual + cantidadFinal)) return showMsg(`¡Stock insuficiente!`, "error");
     
     if (enCarrito) {
-      setCarrito(carrito.map(i => i.id === p.id ? {...i, cant: i.cant + 1} : i));
+      setCarrito(carrito.map(i => i.id === p.id ? {...i, cant: i.cant + cantidadFinal} : i));
     } else {
-      setCarrito([...carrito, {...p, cant: 1}]);
+      setCarrito([...carrito, {...p, cant: cantidadFinal}]);
     }
+  };
+
+  // --- INYECCIÓN: CORTE DE PROVEEDORES ---
+  const verificarCorteAutomaticoProv = () => {
+      setInterval(() => {
+          const ahora = new Date();
+          // 11:59:00 PM
+          if (ahora.getHours() === 23 && ahora.getMinutes() === 59 && ahora.getSeconds() === 0) {
+              generarTicketCorteProveedores();
+          }
+      }, 1000);
+  };
+
+  const generarTicketCorteProveedores = () => {
+      const hoy = new Date().toLocaleDateString('en-CA');
+      const pagosHoy = compras.filter(c => new Date(c.fecha).toLocaleDateString('en-CA') === hoy);
+      const total = pagosHoy.reduce((acc, c) => acc + parseFloat(c.monto_total), 0);
+
+      const ticketVentana = window.open('', '_blank');
+      ticketVentana.document.write(`
+          <div style="font-family: monospace; width: 80mm; padding: 10px;">
+              <center>
+                  <h2 style="margin:0;">CORTE PROVEEDORES</h2>
+                  <p style="font-size:10px;">VELASCO DIGITAL POS</p>
+                  <p>${hoy}</p>
+                  <hr>
+              </center>
+              ${pagosHoy.map(p => `
+                  <div style="display:flex; justify-content:space-between; font-size:11px;">
+                      <span>${p.proveedores?.nombre}</span>
+                      <span>$${parseFloat(p.monto_total).toFixed(2)}</span>
+                  </div>
+              `).join('')}
+              <hr>
+              <div style="display:flex; justify-content:space-between; font-weight:bold;">
+                  <span>TOTAL PAGADO:</span>
+                  <span>$${total.toFixed(2)}</span>
+              </div>
+              <center><p style="font-size:9px; margin-top:20px;">Control Físico de Salidas</p></center>
+          </div>
+      `);
+      ticketVentana.print();
+      ticketVentana.close();
+      showMsg("CORTE PROVEEDORES IMPRESO");
   };
 
 
@@ -382,7 +439,7 @@ const uploadImagen = async (file) => {
           </center>
           {ticketImpresion.items.map((it, idx) => (
             <div key={idx} style={{display:'flex', justifyContent:'space-between', fontSize:'12px'}}>
-                <span>{it.cant}x {it.nombre}</span><span>${(it.precio*it.cant).toFixed(2)}</span>
+                <span>{it.cant}{it.unidad_medida === 'kg' ? 'kg' : 'x'} {it.nombre}</span><span>${(it.precio*it.cant).toFixed(2)}</span>
             </div>
           ))}
           <p>----------------------------</p>
@@ -569,9 +626,11 @@ const uploadImagen = async (file) => {
 
   <div className="w-full flex justify-between items-center mt-2">
       <span className={`text-[8px] font-black px-2 py-1 rounded-lg ${p.stock < 5 ? 'bg-red-600 text-white animate-pulse' : 'bg-green-100 text-green-600'}`}>
-          STOCK: {p.stock}
+          STOCK: {p.stock} {p.unidad_medida}
       </span>
-      {p.imagen_url && <span className="text-[10px]"></span>}
+      {p.unidad_medida === 'kg' && (
+          <span className="text-[7px] font-black text-blue-500 bg-blue-50 px-1 rounded uppercase">Bascula</span>
+      )}
   </div>
 </button>
                 ))}
@@ -583,7 +642,7 @@ const uploadImagen = async (file) => {
             <div className="flex-1 overflow-y-auto p-5 space-y-4">
               {carrito.map(i => (
                 <div key={i.id} className="flex justify-between items-start text-xs border-b border-dashed border-slate-200 pb-3">
-                  <span className="font-black text-slate-800 uppercase flex-1 pr-2">{i.cant}x {i.nombre}</span>
+                  <span className="font-black text-slate-800 uppercase flex-1 pr-2">{i.cant}{i.unidad_medida === 'kg' ? 'kg' : 'x'} {i.nombre}</span>
                   <div className="flex flex-col items-end">
                     <span className="font-black text-slate-900">${(i.precio * i.cant).toFixed(2)}</span>
                     <button onClick={() => setCarrito(carrito.filter(x => x.id !== i.id))} className="text-[8px] text-red-500 font-bold uppercase">Quitar</button>
@@ -722,6 +781,14 @@ const uploadImagen = async (file) => {
                             setNuevaCompra({proveedor_id:'', monto_total:'', detalles:''});
                             fetchData();
                         }} className="w-full bg-orange-600 text-white font-black py-6 rounded-3xl shadow-lg shadow-orange-500/30 uppercase text-xs tracking-widest hover:bg-orange-700 transition-all">Confirmar Salida de Dinero</button>
+
+                        {/* INYECCIÓN: BOTÓN CORTE MANUAL PROVEEDORES */}
+                        <button 
+                            onClick={generarTicketCorteProveedores}
+                            className="w-full bg-slate-900 text-white font-black py-3 rounded-2xl uppercase text-[9px] tracking-widest border border-slate-700 hover:bg-slate-800 transition-all"
+                        >
+                            Imprimir Corte de Proveedores (Físico)
+                        </button>
                     </div>
                 </div>
 
@@ -820,21 +887,37 @@ const uploadImagen = async (file) => {
               <div className="space-y-4">
                 <input type="text" placeholder="Nombre del Producto" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none text-black" value={nuevoProd.nombre} onChange={e => setNuevoProd({...nuevoProd, nombre: e.target.value})}/>
                 <input type="text" placeholder="Código de Barras" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none text-black" value={nuevoProd.barcode} onChange={e => setNuevoProd({...nuevoProd, barcode: e.target.value})}/>
-                {/* SECCIÓN DE CARGA DE IMAGEN ESTILO IPHONE */}
-<div className="space-y-1">
-    <p className="text-[8px] font-black text-slate-400 uppercase ml-2">Foto del Producto (Opcional)</p>
-    <input 
-        type="file" 
-        accept="image/*" 
-        className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-[10px] text-black border-2 border-transparent focus:border-blue-500 outline-none transition-all file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-blue-100 file:text-blue-600" 
-        onChange={(e) => {
-            if(e.target.files[0]) {
-                setFile(e.target.files[0]);
-                showMsg("IMAGEN CARGADA EXITOSAMENTE");
-            }
-        }}
-    />
-</div>
+                
+                {/* INYECCIÓN: SELECTOR TIPO DE PRODUCTO (UNIDAD VS KG) */}
+                <div className="grid grid-cols-2 gap-2">
+                    <button 
+                        onClick={() => setNuevoProd({...nuevoProd, unidad_medida: 'pz'})}
+                        className={`py-3 rounded-xl font-black text-[9px] uppercase border-2 transition-all ${nuevoProd.unidad_medida === 'pz' ? 'bg-blue-600 border-blue-500 text-white' : 'border-slate-100 text-slate-400'}`}
+                    >
+                        📦 Por Unidad
+                    </button>
+                    <button 
+                        onClick={() => setNuevoProd({...nuevoProd, unidad_medida: 'kg'})}
+                        className={`py-3 rounded-xl font-black text-[9px] uppercase border-2 transition-all ${nuevoProd.unidad_medida === 'kg' ? 'bg-emerald-600 border-emerald-500 text-white' : 'border-slate-100 text-slate-400'}`}
+                    >
+                        ⚖️ Por Gramaje (Kg)
+                    </button>
+                </div>
+
+                <div className="space-y-1">
+                    <p className="text-[8px] font-black text-slate-400 uppercase ml-2">Foto del Producto (Opcional)</p>
+                    <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="w-full bg-slate-50 p-4 rounded-2xl font-bold text-[10px] text-black border-2 border-transparent focus:border-blue-500 outline-none transition-all file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-blue-100 file:text-blue-600" 
+                        onChange={(e) => {
+                            if(e.target.files[0]) {
+                                setFile(e.target.files[0]);
+                                showMsg("IMAGEN CARGADA EXITOSAMENTE");
+                            }
+                        }}
+                    />
+                </div>
 
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
@@ -862,8 +945,15 @@ const uploadImagen = async (file) => {
 
                 <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-1">
-                        <p className="text-[8px] font-black text-slate-400 uppercase ml-2">Stock Inicial</p>
-                        <input type="number" placeholder="0" className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none text-black" value={nuevoProd.stock} onChange={e => setNuevoProd({...nuevoProd, stock: e.target.value})}/>
+                        <p className="text-[8px] font-black text-slate-400 uppercase ml-2">Stock Inicial ({nuevoProd.unidad_medida})</p>
+                        <input 
+                            type="number" 
+                            step={nuevoProd.unidad_medida === 'kg' ? '0.001' : '1'} 
+                            placeholder="0" 
+                            className="w-full bg-slate-50 p-5 rounded-2xl font-bold border-2 border-transparent focus:border-blue-500 outline-none text-black" 
+                            value={nuevoProd.stock} 
+                            onChange={e => setNuevoProd({...nuevoProd, stock: e.target.value})}
+                        />
                     </div>
                 </div>
 
@@ -876,22 +966,22 @@ const uploadImagen = async (file) => {
         url = await uploadImagen(file); 
     }
 
-    const finalStock = parseInt(nuevoProd.stock) || 0;
+    const finalStock = parseFloat(nuevoProd.stock) || 0;
 
     // 2. Insertamos en la base de datos incluyendo el link de la imagen
     const { error } = await supabase.from('productos').insert([{
         ...nuevoProd, 
         stock: finalStock, 
         empresa_id: profile.empresa_id,
-        imagen_url: url // <--- Este es el campo nuevo en tu tabla
+        imagen_url: url 
     }]);
 
     if (error) return showMsg("Error al guardar", "error");
     
     // 3. Limpiamos todo para el siguiente producto
     showMsg("¡PRODUCTO AGREGADO CON ÉXITO!");
-    setNuevoProd({nombre:'', precio:'', stock: '', barcode: '', precio_compra: ''});
-    setFile(null); // Reseteamos el selector de archivos
+    setNuevoProd({nombre:'', precio:'', stock: '', barcode: '', precio_compra: '', unidad_medida: 'pz'});
+    setFile(null); 
     fetchData();
 }} className="w-full bg-slate-900 text-white font-black py-5 rounded-2xl shadow-xl uppercase text-[10px] tracking-widest mt-2">
     Añadir al Catálogo
@@ -906,7 +996,7 @@ const uploadImagen = async (file) => {
                         <div className="flex-1">
                             <span className="font-black text-[10px] text-slate-800 uppercase block">{p.nombre}</span>
                             <div className="flex items-center gap-3">
-                                <span className={`text-[9px] font-bold uppercase ${p.stock < 5 ? 'text-red-500' : 'text-slate-400'}`}>Cant: {p.stock}</span>
+                                <span className={`text-[9px] font-bold uppercase ${p.stock < 5 ? 'text-red-500' : 'text-slate-400'}`}>Cant: {p.stock} {p.unidad_medida}</span>
                                 {p.precio_compra && (
                                     <span className="text-[9px] font-black text-emerald-600 uppercase bg-emerald-50 px-2 py-0.5 rounded-md">
                                         Ganancia: ${(parseFloat(p.precio) - parseFloat(p.precio_compra)).toFixed(2)}
@@ -915,15 +1005,20 @@ const uploadImagen = async (file) => {
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <input type="number" className="w-20 bg-slate-50 p-2 rounded-lg font-black text-center text-xs border text-black" defaultValue={p.stock} onBlur={(e) => {
-                                const val = parseInt(e.target.value) || 0;
-                                supabase.from('productos').update({ stock: val }).eq('id', p.id).then(()=>{
-                                    fetchData();
-                                    showMsg("STOCK ACTUALIZADO 🔄");
-                                });
-                            }}/>
+                            <input 
+                                type="number" 
+                                step={p.unidad_medida === 'kg' ? '0.001' : '1'} 
+                                className="w-20 bg-slate-50 p-2 rounded-lg font-black text-center text-xs border text-black" 
+                                defaultValue={p.stock} 
+                                onBlur={(e) => {
+                                    const val = parseFloat(e.target.value) || 0;
+                                    supabase.from('productos').update({ stock: val }).eq('id', p.id).then(()=>{
+                                        fetchData();
+                                        showMsg("STOCK ACTUALIZADO 🔄");
+                                    });
+                                }}
+                            />
                             <button onClick={async () => { 
-                                // SUSTITUCIÓN DE CONFIRM NATIVO EN ELIMINAR PRODUCTO
                                 setConfirmModal({
                                     visible: true,
                                     titulo: `¿Eliminar ${p.nombre}?`,
@@ -980,7 +1075,7 @@ const uploadImagen = async (file) => {
                         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                             <div className="flex flex-wrap gap-2">
                                 {v.items?.map((item, idx) => (
-                                    <span key={idx} className="bg-white px-2 py-1 rounded-lg border text-[9px] font-black text-slate-700">{item.cant}x {item.nombre}</span>
+                                    <span key={idx} className="bg-white px-2 py-1 rounded-lg border text-[9px] font-black text-slate-700">{item.cant}{item.unidad_medida === 'kg' ? 'kg' : 'x'} {item.nombre}</span>
                                 ))}
                             </div>
                         </div>
@@ -1120,3 +1215,4 @@ const uploadImagen = async (file) => {
     </div>
   );
 }
+
