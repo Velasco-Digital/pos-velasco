@@ -214,7 +214,7 @@ const uploadImagen = async (file) => {
             <body>
                 <center>
                     <h2 style="margin:0;">CORTE PROVEEDORES</h2>
-                    <p style="font-size:10px; margin:2px;">VELASCO DIGITAL CO.</p>
+                    <p style="font-size:10px; margin:2px;">VD POS v5.</p>
                     <p style="font-size:12px;">${hoy}</p>
                     <hr>
                 </center>
