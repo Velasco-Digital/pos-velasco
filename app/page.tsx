@@ -8,6 +8,7 @@ import { useUserRole } from '../hooks/useUserRole';
  * VELASCO POS - ULTIMATE LUXURY EDITION
  * Versión: 5.2 (Velasco Digital Co. Engineering)
  * Mejora: Layout de Carrito Compacto y Optimizado para móvil
+ * Update: Módulo de Autogestión de Logotipo y Ticket con Desglose de Cambio
  */
 
 export default function VelascoPOS_Ultimate() {
@@ -25,7 +26,15 @@ export default function VelascoPOS_Ultimate() {
   const [metodoPago, setMetodoPago] = useState('efectivo');
   
   const [fechaConsulta, setFechaConsulta] = useState(new Date().toLocaleDateString('en-CA'));
-  const [ticketImpresion, setTicketImpresion] = useState({ items: [], total: 0, fecha: '', vendedor: '', metodo: '' });
+  const [ticketImpresion, setTicketImpresion] = useState({ 
+    items: [], 
+    total: 0, 
+    fecha: '', 
+    vendedor: '', 
+    metodo: '',
+    pagoCon: 0,
+    cambio: 0 
+  });
   const [nuevoProd, setNuevoProd] = useState({ 
     nombre: '', 
     precio: '', 
@@ -36,6 +45,7 @@ export default function VelascoPOS_Ultimate() {
   });
   
   const [file, setFile] = useState(null);
+  const [logoFile, setLogoFile] = useState(null); // Nuevo: Estado para el logo en ajustes
   const [pagoCon, setPagoCon] = useState('');
   const [inputBarras, setInputBarras] = useState('');
 
@@ -73,6 +83,41 @@ export default function VelascoPOS_Ultimate() {
     } catch (error) {
       showMsg("Error al subir la imagen", "error");
       return null;
+    }
+  };
+
+  // NUEVO: Función específica para subir el logo del negocio
+  const handleUploadLogo = async () => {
+    if (!logoFile) return showMsg("Selecciona una imagen", "error");
+    
+    try {
+      const fileExt = logoFile.name.split('.').pop();
+      const fileName = `logo_${profile.empresa_id}_${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('logos_empresas')
+        .upload(filePath, logoFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from('logos_empresas')
+        .getPublicUrl(filePath);
+
+      // Actualizar el perfil en la base de datos
+      const { error: updateError } = await supabase
+        .from('perfiles')
+        .update({ logo_url: data.publicUrl })
+        .eq('id', session.user.id);
+
+      if (updateError) throw updateError;
+
+      showMsg("LOGO ACTUALIZADO");
+      setLogoFile(null);
+      window.location.reload(); // Recargar para que useUserRole traiga el nuevo logo
+    } catch (error) {
+      showMsg("Error al procesar logo", "error");
     }
   };
 
@@ -253,6 +298,10 @@ export default function VelascoPOS_Ultimate() {
     const factorImpuesto = ajustes.aplicar_isr ? 1.16 : 1;
     const totalVenta = subtotal * factorImpuesto;
     
+    // Cálculos para el desglose del ticket
+    const montoRecibido = parseFloat(pagoCon) || totalVenta;
+    const cambioCalculado = montoRecibido - totalVenta;
+    
     const { error } = await supabase.from('ventas').insert([{ 
         items: carrito, 
         total: totalVenta, 
@@ -266,7 +315,15 @@ export default function VelascoPOS_Ultimate() {
         await supabase.rpc('decrement_stock', { row_id: item.id, amount: item.cant });
     }
     if (imprimir) {
-        setTicketImpresion({ items: [...carrito], total: totalVenta, fecha: new Date().toLocaleString(), vendedor: session.user.email, metodo: metodoPago });
+        setTicketImpresion({ 
+            items: [...carrito], 
+            total: totalVenta, 
+            fecha: new Date().toLocaleString(), 
+            vendedor: session.user.email, 
+            metodo: metodoPago,
+            pagoCon: montoRecibido,
+            cambio: cambioCalculado
+        });
         setTimeout(() => { window.print(); setCarrito([]); setPagoCon(''); fetchData(); }, 500);
     } else {
         showMsg("¡VENTA COMPLETADA!");
@@ -456,26 +513,52 @@ export default function VelascoPOS_Ultimate() {
       {/* TICKET DE IMPRESIÓN (VISIBLE SÓLO EN PRINT) */}
       <div id="tk-gh">
           <center>
+            {/* LOGO DINÁMICO */}
+            {profile?.logo_url && (
+              <img src={profile.logo_url} style={{ width: '40mm', marginBottom: '8px' }} alt="Logo" />
+            )}
             <h2 className="font-bold">VD POS</h2>
             <p style={{fontSize: '9px'}}>Terminal: {profile?.nombre_empresa || 'VD Co.'}</p>
             <p style={{fontSize: '9px'}}>Vendedor: {ticketImpresion.vendedor}</p>
             <p>----------------------------</p>
           </center>
           {ticketImpresion.items.map((it, idx) => (
-            <div key={idx} style={{display:'flex', justifyBetween:'space-between', fontSize:'12px'}}>
-                <span>{it.cant} {it.nombre}</span><span>${(it.precio*it.cant).toFixed(2)}</span>
+            <div key={idx} style={{display:'flex', justifyContent:'space-between', fontSize:'12px', marginBottom: '2px'}}>
+                <span style={{flex: 1, paddingRight: '5px'}}>{it.cant} {it.nombre}</span>
+                <span style={{fontWeight:'bold'}}>${(it.precio*it.cant).toFixed(2)}</span>
             </div>
           ))}
           <p>----------------------------</p>
-          <div style={{display:'flex', justifyBetween:'space-between', fontWeight:'bold'}}><span>TOTAL:</span><span>${ticketImpresion.total.toFixed(2)}</span></div>
-          <center><p style={{fontSize:'9px', marginTop:'15px'}}>{ticketImpresion.fecha}</p></center>
+          <div style={{display:'flex', justifyContent:'space-between', fontWeight:'bold', fontSize: '13px'}}>
+            <span>TOTAL:</span>
+            <span>${ticketImpresion.total.toFixed(2)}</span>
+          </div>
+
+          {/* DESGLOSE DE PAGO Y CAMBIO */}
+          {ticketImpresion.metodo === 'efectivo' && (
+            <>
+              <div style={{display:'flex', justifyContent:'space-between', fontSize:'11px', marginTop: '5px'}}>
+                <span>PAGÓ CON:</span>
+                <span>${ticketImpresion.pagoCon.toFixed(2)}</span>
+              </div>
+              <div style={{display:'flex', justifyContent:'space-between', fontSize:'12px', fontWeight:'bold'}}>
+                <span>CAMBIO:</span>
+                <span>${ticketImpresion.cambio.toFixed(2)}</span>
+              </div>
+            </>
+          )}
+
+          <center>
+            <p style={{fontSize:'9px', marginTop:'15px'}}>{ticketImpresion.fecha}</p>
+            <p style={{fontSize:'8px'}}>¡Vuelva pronto!</p>
+          </center>
       </div>
 
       {/* NAVIGATION BAR - GLASSMORPHISM STYLE */}
       <nav className="bg-white/80 backdrop-blur-md p-4 flex flex-col sm:flex-row justify-between items-center shadow-[0_1px_0_0_rgba(0,0,0,0.05)] no-print gap-4 z-50">
         <div className="flex items-center gap-4">
             <div className="bg-blue-600 w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200 rotate-3">
-                <span className="text-white font-black italic text-xl">V</span>
+                <span className="text-white font-black italic text-xl">VD</span>
             </div>
             <div>
                 <h1 className="text-black font-black text-xl tracking-tighter">VD POS <span className="text-blue-600">v5</span></h1>
@@ -1223,6 +1306,35 @@ export default function VelascoPOS_Ultimate() {
               <div className="text-center mb-12">
                 <h2 className="font-black text-4xl mb-3 italic uppercase text-black tracking-tighter">Panel Maestro</h2>
                 <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.4em]">Configuración Global de Sistema</p>
+              </div>
+
+              {/* NUEVA SECCIÓN: IDENTIDAD VISUAL (SUBIR LOGO) */}
+              <div className="mb-10 bg-slate-900 p-10 rounded-[3rem] text-white shadow-xl">
+                  <h3 className="font-black text-lg mb-6 italic uppercase tracking-tighter text-blue-400">Identidad del Negocio</h3>
+                  <div className="flex flex-col md:flex-row items-center gap-10">
+                      <div className="w-32 h-32 bg-white/10 rounded-[2rem] border border-white/10 flex items-center justify-center overflow-hidden">
+                          {profile?.logo_url ? (
+                            <img src={profile.logo_url} className="w-full h-full object-contain p-2" />
+                          ) : (
+                            <span className="text-[10px] font-black text-white/30 text-center p-4">SIN LOGO<br/>CONFIGURADO</span>
+                          )}
+                      </div>
+                      <div className="flex-1 space-y-4">
+                          <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest">Sube tu logotipo (PNG/JPG recomendado)</p>
+                          <input 
+                              type="file" 
+                              accept="image/*"
+                              className="w-full text-xs text-white/40 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[10px] file:font-black file:bg-blue-600 file:text-white"
+                              onChange={(e) => setLogoFile(e.target.files[0])}
+                          />
+                          <button 
+                            onClick={handleUploadLogo}
+                            className="bg-blue-600 px-8 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg shadow-blue-500/20 active:scale-95 transition-all hover:bg-blue-500"
+                          >
+                            Actualizar Logo del Ticket
+                          </button>
+                      </div>
+                  </div>
               </div>
               
               <div className="space-y-6">
