@@ -6,8 +6,8 @@ import { useUserRole } from '../hooks/useUserRole';
 
 /**
  * VELASCO POS - ULTIMATE LUXURY EDITION
- * Versión: 5.2 (Velasco Digital Co. Engineering)
- * Cirugía: Implementación de Baja Lógica para Proveedores
+ * Versión: 5.3 (Velasco Digital Co. Engineering)
+ * Cirugía: Implementación de Edición de Productos en Stock
  * Mantiene: Historial de gastos, branding personalizado y ticket pro.
  */
 
@@ -53,6 +53,7 @@ export default function VelascoPOS_Ultimate() {
   const [compras, setCompras] = useState([]);
   const [nuevoProv, setNuevoProv] = useState({ nombre: '', contacto: '', categoria: '' });
   const [editandoProv, setEditandoProv] = useState(null); 
+  const [editandoProdId, setEditandoProdId] = useState(null); // NUEVO SENSOR PARA EDICIÓN DE PRODUCTOS
   const [nuevaCompra, setNuevaCompra] = useState({ proveedor_id: '', monto_total: '', detalles: '' });
 
   // SISTEMA DE NOTIFICACIONES TIPO IPHONE
@@ -174,7 +175,6 @@ export default function VelascoPOS_Ultimate() {
       .order('id', { ascending: false }).limit(500);
     if (histData) setHistorial(histData);
 
-    // CAMBIO DE CIRUGÍA: Solo traer proveedores activos
     const { data: provData } = await supabase.from('proveedores')
       .select('*')
       .eq('empresa_id', profile.empresa_id)
@@ -619,7 +619,7 @@ export default function VelascoPOS_Ultimate() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[
-                    {label: 'Ingresos Hoy', value: `$${totalCorte.toFixed(2)}`, color: 'text-blue-600', bg: 'bg-white', icon: '💎'},
+                    {label: 'Ingresos Hoy', value: `$${totalCorte.toFixed(2)}`, color: 'text-blue-600', bg: 'bg-white', icon: '$'},
                     {label: 'Salidas Prov', value: `-$${totalGastos.toFixed(2)}`, color: 'text-orange-600', bg: 'bg-white', icon: '💸'},
                     {label: 'Utilidad Neta', value: `$${utilidadNeta.toFixed(2)}`, color: utilidadNeta >= 0 ? 'text-emerald-600' : 'text-red-600', bg: utilidadNeta >= 0 ? 'bg-emerald-50' : 'bg-red-50', icon: '📈'},
                     {label: 'Stock Crítico', value: `${productosBajos.length} Items`, color: 'text-red-600', bg: 'bg-white', icon: '⚠️'}
@@ -932,7 +932,9 @@ export default function VelascoPOS_Ultimate() {
             
             <div className="lg:col-span-2 space-y-8">
                 <div className="bg-white p-10 rounded-[3.5rem] shadow-xl border border-white">
-                    <h2 className="font-black text-2xl mb-10 italic uppercase text-black tracking-tighter text-center">Nuevo Registro</h2>
+                    <h2 className="font-black text-2xl mb-10 italic uppercase text-black tracking-tighter text-center">
+                        {editandoProdId ? 'Actualizar Producto' : 'Nuevo Registro'}
+                    </h2>
                     <div className="space-y-6">
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4">Nombre Comercial</label>
@@ -1002,21 +1004,40 @@ export default function VelascoPOS_Ultimate() {
                             />
                         </div>
 
-                        <button 
-                            onClick={async () => {
-                                let url = null;
-                                if (file) url = await uploadImagen(file); 
-                                const finalStock = parseFloat(nuevoProd.stock) || 0;
-                                const { error } = await supabase.from('productos').insert([{...nuevoProd, stock: finalStock, empresa_id: profile.empresa_id, imagen_url: url }]);
-                                if (error) return showMsg("Error", "error");
-                                showMsg("¡PRODUCTO CREADO!");
-                                setNuevoProd({nombre:'', precio:'', stock: '', barcode: '', precio_compra: '', unidad_medida: 'pz'});
-                                setFile(null); fetchData();
-                            }} 
-                            className="w-full bg-black text-white font-black py-7 rounded-3xl shadow-2xl shadow-slate-300 uppercase text-[12px] tracking-[0.3em] transition-all hover:bg-slate-800"
-                        >
-                            Alta en Nube
-                        </button>
+                        <div className="flex gap-2">
+                            {editandoProdId && (
+                                <button 
+                                    onClick={() => { setEditandoProdId(null); setNuevoProd({nombre:'', precio:'', stock: '', barcode: '', precio_compra: '', unidad_medida: 'pz'}); }} 
+                                    className="bg-slate-200 text-slate-600 font-black py-7 rounded-3xl px-6 uppercase text-[10px]"
+                                >
+                                    ×
+                                </button>
+                            )}
+                            <button 
+                                onClick={async () => {
+                                    let url = nuevoProd.imagen_url || null;
+                                    if (file) url = await uploadImagen(file); 
+                                    const finalStock = parseFloat(nuevoProd.stock) || 0;
+                                    
+                                    if (editandoProdId) {
+                                        const { error } = await supabase.from('productos').update({...nuevoProd, stock: finalStock, imagen_url: url }).eq('id', editandoProdId);
+                                        if (error) return showMsg("Error al actualizar", "error");
+                                        showMsg("¡PRODUCTO ACTUALIZADO!");
+                                    } else {
+                                        const { error } = await supabase.from('productos').insert([{...nuevoProd, stock: finalStock, empresa_id: profile.empresa_id, imagen_url: url }]);
+                                        if (error) return showMsg("Error al crear", "error");
+                                        showMsg("¡PRODUCTO CREADO!");
+                                    }
+                                    
+                                    setEditandoProdId(null);
+                                    setNuevoProd({nombre:'', precio:'', stock: '', barcode: '', precio_compra: '', unidad_medida: 'pz'});
+                                    setFile(null); fetchData();
+                                }} 
+                                className={`w-full font-black py-7 rounded-3xl shadow-2xl uppercase text-[12px] tracking-[0.3em] transition-all ${editandoProdId ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-black text-white hover:bg-slate-800'}`}
+                            >
+                                {editandoProdId ? 'Sincronizar Cambios' : 'Alta en Nube'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1042,17 +1063,36 @@ export default function VelascoPOS_Ultimate() {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
                                     <input 
                                         type="number" 
                                         step={p.unidad_medida === 'kg' ? '0.001' : '1'} 
-                                        className="w-24 bg-white p-3 rounded-xl font-black text-center text-sm border-2 border-slate-100 focus:border-blue-500 outline-none" 
+                                        className="w-20 bg-white p-3 rounded-xl font-black text-center text-sm border-2 border-slate-100 focus:border-blue-500 outline-none" 
                                         defaultValue={p.stock} 
                                         onBlur={(e) => {
                                             const val = parseFloat(e.target.value) || 0;
                                             supabase.from('productos').update({ stock: val }).eq('id', p.id).then(()=>{ fetchData(); showMsg("STOCK SINCRONIZADO"); });
                                         }}
                                     />
+                                    {/* BOTÓN EDITAR (CIRUGÍA IMPLEMENTADA) */}
+                                    <button 
+                                        onClick={() => {
+                                            setEditandoProdId(p.id);
+                                            setNuevoProd({
+                                                nombre: p.nombre,
+                                                precio: p.precio,
+                                                stock: p.stock,
+                                                barcode: p.barcode || '',
+                                                precio_compra: p.precio_compra,
+                                                unidad_medida: p.unidad_medida,
+                                                imagen_url: p.imagen_url
+                                            });
+                                            showMsg("CARGANDO DATOS PARA EDICIÓN", "success");
+                                        }}
+                                        className="bg-white text-blue-500 w-12 h-12 flex items-center justify-center rounded-2xl border-2 border-blue-50 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                    </button>
                                     <button 
                                         onClick={async () => { 
                                             setConfirmModal({
@@ -1104,8 +1144,6 @@ export default function VelascoPOS_Ultimate() {
                                         </button>
                                         <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button onClick={(e) => { e.stopPropagation(); setEditandoProv(p.id); setNuevoProv({nombre: p.nombre, contacto: p.contacto}); }} className="bg-blue-600 text-white w-8 h-8 rounded-xl text-[10px] font-black shadow-lg">✎</button>
-                                            
-                                            {/* CAMBIO DE CIRUGÍA: Baja Lógica en lugar de Delete físico */}
                                             <button onClick={(e) => { 
                                                 e.stopPropagation(); 
                                                 setConfirmModal({ 
