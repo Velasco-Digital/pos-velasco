@@ -7,8 +7,8 @@ import { useUserRole } from '../hooks/useUserRole';
 /**
  * VELASCO POS - ULTIMATE LUXURY EDITION
  * Versión: 5.2 (Velasco Digital Co. Engineering)
- * Mejora: Layout de Carrito Compacto y Optimizado para móvil
- * Update: Módulo de Autogestión de Logotipo y Ticket con Desglose de Cambio
+ * Cirugía: Implementación de Baja Lógica para Proveedores
+ * Mantiene: Historial de gastos, branding personalizado y ticket pro.
  */
 
 export default function VelascoPOS_Ultimate() {
@@ -45,7 +45,7 @@ export default function VelascoPOS_Ultimate() {
   });
   
   const [file, setFile] = useState(null);
-  const [logoFile, setLogoFile] = useState(null); // Nuevo: Estado para el logo en ajustes
+  const [logoFile, setLogoFile] = useState(null); 
   const [pagoCon, setPagoCon] = useState('');
   const [inputBarras, setInputBarras] = useState('');
 
@@ -86,7 +86,6 @@ export default function VelascoPOS_Ultimate() {
     }
   };
 
-  // NUEVO: Función específica para subir el logo del negocio
   const handleUploadLogo = async () => {
     if (!logoFile) return showMsg("Selecciona una imagen", "error");
     
@@ -105,7 +104,6 @@ export default function VelascoPOS_Ultimate() {
         .from('logos_empresas')
         .getPublicUrl(filePath);
 
-      // Actualizar el perfil en la base de datos
       const { error: updateError } = await supabase
         .from('perfiles')
         .update({ logo_url: data.publicUrl })
@@ -115,7 +113,7 @@ export default function VelascoPOS_Ultimate() {
 
       showMsg("LOGO ACTUALIZADO");
       setLogoFile(null);
-      window.location.reload(); // Recargar para que useUserRole traiga el nuevo logo
+      window.location.reload(); 
     } catch (error) {
       showMsg("Error al procesar logo", "error");
     }
@@ -176,9 +174,11 @@ export default function VelascoPOS_Ultimate() {
       .order('id', { ascending: false }).limit(500);
     if (histData) setHistorial(histData);
 
+    // CAMBIO DE CIRUGÍA: Solo traer proveedores activos
     const { data: provData } = await supabase.from('proveedores')
       .select('*')
-      .eq('empresa_id', profile.empresa_id);
+      .eq('empresa_id', profile.empresa_id)
+      .eq('activo', true); 
     if (provData) setProveedores(provData);
 
     const { data: compData } = await supabase.from('compras_proveedores')
@@ -258,7 +258,7 @@ export default function VelascoPOS_Ultimate() {
               </center>
               ${pagosHoy.map(p => `
                   <div class="flex">
-                      <span>${p.proveedores?.nombre?.substring(0,15)}</span>
+                      <span>${p.proveedores?.nombre?.substring(0,15) || 'Proveedor Oculto'}</span>
                       <span>$${parseFloat(p.monto_total).toFixed(2)}</span>
                   </div>
               `).join('')}
@@ -298,7 +298,6 @@ export default function VelascoPOS_Ultimate() {
     const factorImpuesto = ajustes.aplicar_isr ? 1.16 : 1;
     const totalVenta = subtotal * factorImpuesto;
     
-    // Cálculos para el desglose del ticket
     const montoRecibido = parseFloat(pagoCon) || totalVenta;
     const cambioCalculado = montoRecibido - totalVenta;
     
@@ -513,7 +512,6 @@ export default function VelascoPOS_Ultimate() {
       {/* TICKET DE IMPRESIÓN (VISIBLE SÓLO EN PRINT) */}
       <div id="tk-gh">
           <center>
-            {/* LOGO DINÁMICO */}
             {profile?.logo_url && (
               <img src={profile.logo_url} style={{ width: '40mm', marginBottom: '8px' }} alt="Logo" />
             )}
@@ -534,7 +532,6 @@ export default function VelascoPOS_Ultimate() {
             <span>${ticketImpresion.total.toFixed(2)}</span>
           </div>
 
-          {/* DESGLOSE DE PAGO Y CAMBIO */}
           {ticketImpresion.metodo === 'efectivo' && (
             <>
               <div style={{display:'flex', justifyContent:'space-between', fontSize:'11px', marginTop: '5px'}}>
@@ -1107,7 +1104,20 @@ export default function VelascoPOS_Ultimate() {
                                         </button>
                                         <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button onClick={(e) => { e.stopPropagation(); setEditandoProv(p.id); setNuevoProv({nombre: p.nombre, contacto: p.contacto}); }} className="bg-blue-600 text-white w-8 h-8 rounded-xl text-[10px] font-black shadow-lg">✎</button>
-                                            <button onClick={(e) => { e.stopPropagation(); setConfirmModal({ visible: true, titulo: `Eliminar ${p.nombre}`, accion: async () => { await supabase.from('proveedores').delete().eq('id', p.id); fetchData(); showMsg("ELIMINADO"); } }); }} className="bg-red-600 text-white w-8 h-8 rounded-xl text-[10px] font-black shadow-lg">×</button>
+                                            
+                                            {/* CAMBIO DE CIRUGÍA: Baja Lógica en lugar de Delete físico */}
+                                            <button onClick={(e) => { 
+                                                e.stopPropagation(); 
+                                                setConfirmModal({ 
+                                                    visible: true, 
+                                                    titulo: `¿Quitar a ${p.nombre}?`, 
+                                                    accion: async () => { 
+                                                        await supabase.from('proveedores').update({ activo: false }).eq('id', p.id); 
+                                                        fetchData(); 
+                                                        showMsg("PROVEEDOR OCULTO"); 
+                                                    } 
+                                                }); 
+                                            }} className="bg-red-600 text-white w-8 h-8 rounded-xl text-[10px] font-black shadow-lg">×</button>
                                         </div>
                                     </div>
                                 ))}
@@ -1149,10 +1159,10 @@ export default function VelascoPOS_Ultimate() {
                             <div key={c.id} className="p-8 border-b border-slate-50 flex justify-between items-center hover:bg-slate-50 transition-colors">
                                 <div className="flex items-center gap-6">
                                     <div className="w-14 h-14 bg-orange-100 rounded-2xl flex items-center justify-center text-orange-600 font-black text-sm">
-                                        {c.proveedores?.nombre?.substring(0,2).toUpperCase()}
+                                        {c.proveedores?.nombre?.substring(0,2).toUpperCase() || '??'}
                                     </div>
                                     <div>
-                                        <span className="font-black text-[13px] text-slate-800 uppercase block tracking-tight">{c.proveedores?.nombre}</span>
+                                        <span className="font-black text-[13px] text-slate-800 uppercase block tracking-tight">{c.proveedores?.nombre || 'Proveedor Oculto'}</span>
                                         <span className="text-[10px] text-slate-400 font-bold uppercase">{new Date(c.fecha).toLocaleDateString()}</span>
                                     </div>
                                 </div>
@@ -1194,7 +1204,7 @@ export default function VelascoPOS_Ultimate() {
                 
                 <div className="bg-orange-600 p-10 rounded-[4rem] text-white shadow-[0_30px_60px_rgba(234,88,12,0.3)] relative overflow-hidden group h-52 flex flex-col justify-between">
                     <div className="relative z-10">
-                        <p className="text-[11px] font-black uppercase opacity-80 mb-1 tracking-widest">Gastos Totales</p>
+                        <p className="text-[11px] font-black uppercase opacity-80 mb-1 tracking-widest">Gastos Totales Hoy</p>
                         <h2 className="text-5xl font-black tracking-tighter tabular-nums">${totalGastos.toFixed(2)}</h2>
                     </div>
                     <div className="absolute -right-6 -bottom-6 text-9xl opacity-20 group-hover:scale-110 transition-transform">📊</div>
@@ -1308,7 +1318,7 @@ export default function VelascoPOS_Ultimate() {
                 <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.4em]">Configuración Global de Sistema</p>
               </div>
 
-              {/* NUEVA SECCIÓN: IDENTIDAD VISUAL (SUBIR LOGO) */}
+              {/* IDENTIDAD VISUAL (LOGO) */}
               <div className="mb-10 bg-slate-900 p-10 rounded-[3rem] text-white shadow-xl">
                   <h3 className="font-black text-lg mb-6 italic uppercase tracking-tighter text-blue-400">Identidad del Negocio</h3>
                   <div className="flex flex-col md:flex-row items-center gap-10">
