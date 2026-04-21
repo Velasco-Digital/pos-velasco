@@ -6,8 +6,8 @@ import { useUserRole } from '../hooks/useUserRole';
 
 /**
  * VELASCO POS - ULTIMATE LUXURY EDITION
- * Versión: 5.0 (Velasco Digital Co. Engineering)
- * Estética: iOS Ultra Premium / Pro Interface
+ * Versión: 5.1 (Velasco Digital Co. Engineering)
+ * Corrección: Layout de Checkout y botones fijos
  */
 
 export default function VelascoPOS_Ultimate() {
@@ -688,61 +688,69 @@ export default function VelascoPOS_Ultimate() {
           </section>
 
           {/* SHOPPING CART SIDEBAR - THE "PAYMENT TERMINAL" LOOK */}
-          <section className="w-full md:w-96 bg-white border-l border-slate-100 shadow-[0_0_80px_rgba(0,0,0,0.05)] flex flex-col h-[60vh] md:h-full z-40 relative">
+          <section className="w-full md:w-96 bg-white border-l border-slate-100 shadow-[0_0_80px_rgba(0,0,0,0.05)] flex flex-col h-[70vh] md:h-full z-40 relative">
             <div className="p-8 pb-4">
                 <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em]">Checkout</span>
                 <h2 className="text-2xl font-black text-black tracking-tight">Tu Carrito</h2>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8 space-y-6">
-                {carrito.length > 0 ? carrito.map(i => (
-                    <div key={i.id} className="flex justify-between items-start animate-in slide-in-from-right-4">
-                        <div className="flex-1 pr-4">
-                            <span className="font-black text-slate-800 uppercase text-[11px] block leading-tight">{i.nombre}</span>
-                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{i.cant} {i.unidad_medida} x ${i.precio}</span>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                            <span className="font-black text-black text-sm">${(i.precio * i.cant).toFixed(2)}</span>
-                            <button 
-                                onClick={() => setCarrito(carrito.filter(x => x.id !== i.id))} 
-                                className="w-6 h-6 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-sm"
-                            >
-                                <span className="text-[14px]">×</span>
-                            </button>
-                        </div>
+            {/* AREA SCROLLABLE: Carrito + Calculadora */}
+            <div className="flex-1 overflow-y-auto px-8 space-y-6">
+                {carrito.length > 0 ? (
+                  <>
+                    <div className="space-y-6 mb-6">
+                        {carrito.map(i => (
+                            <div key={i.id} className="flex justify-between items-start animate-in slide-in-from-right-4">
+                                <div className="flex-1 pr-4">
+                                    <span className="font-black text-slate-800 uppercase text-[11px] block leading-tight">{i.nombre}</span>
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{i.cant} {i.unidad_medida} x ${i.precio}</span>
+                                </div>
+                                <div className="flex flex-col items-end gap-2">
+                                    <span className="font-black text-black text-sm">${(i.precio * i.cant).toFixed(2)}</span>
+                                    <button 
+                                        onClick={() => setCarrito(carrito.filter(x => x.id !== i.id))} 
+                                        className="w-6 h-6 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                                    >
+                                        <span className="text-[14px]">×</span>
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
                     </div>
-                )) : (
-                    <div className="h-full flex flex-col items-center justify-center opacity-20 text-center space-y-4">
+
+                    {/* CALCULETA DE CAMBIO DENTRO DEL SCROLL */}
+                    {metodoPago === 'efectivo' && (
+                        <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 animate-in zoom-in-95 mb-6">
+                            <p className="text-[8px] font-black text-blue-600 uppercase tracking-[0.2em] mb-2 text-center">Calculadora de Cambio</p>
+                            <input 
+                                type="number" 
+                                placeholder="Monto recibido" 
+                                className="w-full bg-transparent text-center text-black p-2 rounded-xl font-black text-3xl outline-none placeholder:text-slate-300"
+                                value={pagoCon}
+                                onChange={(e) => setPagoCon(e.target.value)}
+                            />
+                            {pagoCon > 0 && (
+                                <div className="mt-4 pt-4 border-t border-slate-200 flex justify-between items-center px-4">
+                                    <span className="text-[10px] font-black text-emerald-600 uppercase">Cambio:</span>
+                                    <span className="text-2xl font-black text-emerald-600">
+                                        ${(pagoCon - (carrito.reduce((a,b)=>a+(b.precio*b.cant),0) * (ajustes.aplicar_isr ? 1.16 : 1))).toFixed(2)}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                  </>
+                ) : (
+                    <div className="h-full flex flex-col items-center justify-center opacity-20 text-center space-y-4 py-20">
                         <div className="text-6xl">🛒</div>
                         <p className="text-[10px] font-black uppercase tracking-widest leading-loose">Terminal lista para<br/>escaneo de productos</p>
                     </div>
                 )}
             </div>
             
+            {/* FOOTER FIJO: Total y Botones de Pago */}
             <div className="p-8 bg-slate-900 md:rounded-t-[4rem] shadow-[0_-20px_60px_rgba(0,0,0,0.2)] text-white">
                 
-                {/* CALCULETA DE CAMBIO - DESIGN TIPO APPLE PAY */}
-                {metodoPago === 'efectivo' && carrito.length > 0 && (
-                    <div className="mb-6 bg-white/5 p-6 rounded-[2rem] border border-white/5 animate-in zoom-in-95">
-                        <p className="text-[8px] font-black text-blue-400 uppercase tracking-[0.2em] mb-2 text-center">Calculadora de Cambio</p>
-                        <input 
-                            type="number" 
-                            placeholder="Monto recibido" 
-                            className="w-full bg-transparent text-center text-white p-2 rounded-xl font-black text-3xl outline-none placeholder:text-slate-700"
-                            value={pagoCon}
-                            onChange={(e) => setPagoCon(e.target.value)}
-                        />
-                        {pagoCon > 0 && (
-                            <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center px-4">
-                                <span className="text-[10px] font-black text-emerald-400 uppercase">Cambio:</span>
-                                <span className="text-2xl font-black text-emerald-400">
-                                    ${(pagoCon - (carrito.reduce((a,b)=>a+(b.precio*b.cant),0) * (ajustes.aplicar_isr ? 1.16 : 1))).toFixed(2)}
-                                </span>
-                            </div>
-                        )}
-                    </div>
-                )}
-
                 <div className="flex gap-2 mb-8 bg-white/5 p-1.5 rounded-2xl">
                     <button onClick={() => setMetodoPago('efectivo')} className={`flex-1 py-3 rounded-xl text-[10px] font-black transition-all ${metodoPago === 'efectivo' ? 'bg-white text-black shadow-lg' : 'text-slate-400'}`}>EFECTIVO</button>
                     <button onClick={() => setMetodoPago('tarjeta')} className={`flex-1 py-3 rounded-xl text-[10px] font-black transition-all ${metodoPago === 'tarjeta' ? 'bg-white text-black shadow-lg' : 'text-slate-400'}`}>TARJETA</button>
@@ -753,7 +761,7 @@ export default function VelascoPOS_Ultimate() {
                         <span className="text-slate-500 font-black uppercase text-[10px] tracking-widest block mb-1">Total Final</span>
                         {ajustes.aplicar_isr && <span className="text-emerald-500 font-black text-[8px] uppercase">ISR 16% Incluido</span>}
                     </div>
-                    <span className="text-5xl font-black text-white tracking-tighter tabular-nums">
+                    <span className="text-4xl font-black text-white tracking-tighter tabular-nums">
                         ${(carrito.reduce((a,b)=>a+(b.precio*b.cant),0) * (ajustes.aplicar_isr ? 1.16 : 1)).toFixed(2)}
                     </span>
                 </div>
@@ -1281,4 +1289,3 @@ export default function VelascoPOS_Ultimate() {
     </div>
   );
 }
-
