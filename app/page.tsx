@@ -6,8 +6,8 @@ import { useUserRole } from '../hooks/useUserRole';
 
 /**
  * VELASCO POS - ULTIMATE LUXURY EDITION
- * Versión: 5.1 (Velasco Digital Co. Engineering)
- * Corrección: Layout de Checkout y botones fijos
+ * Versión: 5.2 (Velasco Digital Co. Engineering)
+ * Mejora: Layout de Carrito Compacto y Optimizado para móvil
  */
 
 export default function VelascoPOS_Ultimate() {
@@ -363,20 +363,20 @@ export default function VelascoPOS_Ultimate() {
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600"></div>
           <div className="mb-10">
             <h1 className="text-white font-black italic text-5xl mb-2 tracking-tighter">VD POS</h1>
-            <p className="text-blue-500 text-[10px] uppercase tracking-[0.4em] font-black">Engineering the Future</p>
+            <p className="text-blue-500 text-[10px] uppercase tracking-[0.4em] font-black">Control Total v5</p>
           </div>
           
           <div className="space-y-4">
             <input 
                 type="email" 
-                placeholder="Identificador" 
+                placeholder="Usuario" 
                 className="w-full bg-[#2c2c2e] text-white p-6 rounded-2xl font-bold outline-none border border-transparent focus:border-blue-500 transition-all placeholder:text-gray-500" 
                 value={email} 
                 onChange={e => setEmail(e.target.value)} 
             />
             <input 
                 type="password" 
-                placeholder="Llave Maestra" 
+                placeholder="Contraseña" 
                 className="w-full bg-[#2c2c2e] text-white p-6 rounded-2xl font-bold outline-none border border-transparent focus:border-blue-500 transition-all placeholder:text-gray-500" 
                 value={password} 
                 onChange={e => setPassword(e.target.value)} 
@@ -456,7 +456,7 @@ export default function VelascoPOS_Ultimate() {
       {/* TICKET DE IMPRESIÓN (VISIBLE SÓLO EN PRINT) */}
       <div id="tk-gh">
           <center>
-            <h2 className="font-bold">VELASCO POS</h2>
+            <h2 className="font-bold">VD POS</h2>
             <p style={{fontSize: '9px'}}>Terminal: {profile?.nombre_empresa || 'VD Co.'}</p>
             <p style={{fontSize: '9px'}}>Vendedor: {ticketImpresion.vendedor}</p>
             <p>----------------------------</p>
@@ -478,15 +478,15 @@ export default function VelascoPOS_Ultimate() {
                 <span className="text-white font-black italic text-xl">V</span>
             </div>
             <div>
-                <h1 className="text-black font-black text-xl tracking-tighter">VD POS <span className="text-blue-600">Ultimate</span></h1>
-                <p className="text-[8px] text-slate-400 uppercase font-black tracking-widest">{profile?.nombre_empresa || 'Engineering Agency'}</p>
+                <h1 className="text-black font-black text-xl tracking-tighter">VD POS <span className="text-blue-600">v5</span></h1>
+                <p className="text-[8px] text-slate-400 uppercase font-black tracking-widest">{profile?.nombre_empresa || 'Control Total'}</p>
             </div>
         </div>
         
         <div className="flex gap-1 bg-[#e3e3e8] p-1 rounded-2xl w-full sm:w-auto overflow-x-auto">
             {[
                 {id: 'dashboard', label: 'DASHBOARD', color: 'bg-white text-black'},
-                {id: 'pos', label: 'TERMINAL', color: 'bg-white text-black'},
+                {id: 'pos', label: 'CAJA', color: 'bg-white text-black'},
                 {id: 'servicios', label: 'SERVICIOS', color: 'bg-emerald-500 text-white'},
                 {id: 'inventario', label: 'STOCK', color: 'bg-indigo-500 text-white', admin: true},
                 {id: 'proveedores', label: 'PROV', color: 'bg-orange-500 text-white', admin: true},
@@ -618,7 +618,7 @@ export default function VelascoPOS_Ultimate() {
       {vista === 'pos' && (
         <main className="flex-1 flex flex-col md:flex-row overflow-hidden animate-in fade-in duration-500">
           
-          <section className="flex-1 p-6 overflow-y-auto">
+          <section className="flex-1 p-4 md:p-6 overflow-y-auto bg-[#f8f8fa]">
             <div className="max-w-5xl mx-auto">
                 <form 
                     onSubmit={(e) => {
@@ -626,7 +626,7 @@ export default function VelascoPOS_Ultimate() {
                         const p = catalogo.find(x => x.barcode === inputBarras); 
                         if(p) { agregarAlCarrito(p); setInputBarras(''); }
                     }} 
-                    className="mb-8 relative"
+                    className="mb-6 relative"
                 >
                     <div className="absolute left-6 top-1/2 -translate-y-1/2 text-blue-500">
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
@@ -634,52 +634,48 @@ export default function VelascoPOS_Ultimate() {
                     <input 
                         type="text" 
                         placeholder="Busca por nombre o escanea el código..." 
-                        className="w-full bg-white p-7 pl-16 rounded-[2rem] shadow-[0_15px_40px_rgba(0,0,0,0.04)] border border-white font-bold text-sm outline-none focus:ring-4 focus:ring-blue-500/5 transition-all text-black placeholder:text-slate-300" 
+                        className="w-full bg-white p-6 pl-16 rounded-[2rem] shadow-[0_15px_40px_rgba(0,0,0,0.04)] border border-white font-bold text-sm outline-none focus:ring-4 focus:ring-blue-500/5 transition-all text-black placeholder:text-slate-300" 
                         value={inputBarras} 
                         onChange={(e) => setInputBarras(e.target.value)} 
                         autoFocus 
                     />
                 </form>
                 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
                     {catalogoFiltrado.map(p => (
                         <button 
                             key={p.id} 
                             onClick={() => agregarAlCarrito(p)} 
-                            className={`group bg-white p-5 rounded-[2.5rem] shadow-sm border border-white text-left flex flex-col justify-between h-56 transform transition-all hover:scale-[1.05] hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] active:scale-95 relative overflow-hidden ${p.stock < 5 ? 'border-red-100' : ''}`}
+                            className={`group bg-white p-4 rounded-[2rem] shadow-sm border border-white text-left flex flex-col justify-between h-52 md:h-56 transform transition-all hover:scale-[1.05] hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] active:scale-95 relative overflow-hidden ${p.stock < 5 ? 'border-red-100' : ''}`}
                         >
                             {p.stock < 5 && <div className="absolute top-0 right-0 bg-red-500 text-white text-[7px] font-black px-3 py-1 rounded-bl-xl uppercase">Agotándose</div>}
                             
-                            <div className="space-y-4">
+                            <div className="space-y-3">
                                 {p.imagen_url ? (
-                                    <div className="w-full h-24 rounded-[1.5rem] overflow-hidden shadow-inner border border-slate-50">
+                                    <div className="w-full h-20 md:h-24 rounded-[1.5rem] overflow-hidden shadow-inner border border-slate-50">
                                         <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                                     </div>
                                 ) : (
-                                    <div className="w-full h-24 bg-slate-50 rounded-[1.5rem] flex items-center justify-center border border-dashed border-slate-200">
-                                        <span className="text-[8px] text-slate-300 font-black uppercase text-center p-4 leading-tight">Sin imagen premium</span>
+                                    <div className="w-full h-20 md:h-24 bg-slate-50 rounded-[1.5rem] flex items-center justify-center border border-dashed border-slate-200">
+                                        <span className="text-[8px] text-slate-300 font-black uppercase text-center p-4 leading-tight">Sin imagen</span>
                                     </div>
                                 )}
                                 
                                 <div>
-                                    <h3 className="font-black text-slate-800 uppercase text-[10px] leading-tight mb-1 truncate group-hover:text-blue-600 transition-colors">
+                                    <h3 className="font-black text-slate-800 uppercase text-[9px] md:text-[10px] leading-tight mb-1 truncate group-hover:text-blue-600 transition-colors">
                                         {p.nombre}
                                     </h3>
-                                    <p className="text-black font-black text-xl tracking-tighter">
+                                    <p className="text-black font-black text-lg md:text-xl tracking-tighter">
                                         ${parseFloat(p.precio).toFixed(2)}
                                     </p>
                                 </div>
                             </div>
 
-                            <div className="flex justify-between items-center mt-3">
-                                <span className={`text-[8px] font-black px-2.5 py-1.5 rounded-xl ${p.stock < 5 ? 'bg-red-600 text-white' : 'bg-blue-50 text-blue-600'}`}>
+                            <div className="flex justify-between items-center mt-2">
+                                <span className={`text-[7px] md:text-[8px] font-black px-2 py-1 rounded-xl ${p.stock < 5 ? 'bg-red-600 text-white' : 'bg-blue-50 text-blue-600'}`}>
                                     {p.stock} {p.unidad_medida}
                                 </span>
-                                {p.unidad_medida === 'kg' && (
-                                    <div className="w-6 h-6 bg-emerald-100 rounded-full flex items-center justify-center shadow-sm">
-                                        <span className="text-[10px]">⚖️</span>
-                                    </div>
-                                )}
+                                {p.unidad_medida === 'kg' && <span className="text-xs">⚖️</span>}
                             </div>
                         </button>
                     ))}
@@ -687,52 +683,59 @@ export default function VelascoPOS_Ultimate() {
             </div>
           </section>
 
-          {/* SHOPPING CART SIDEBAR - THE "PAYMENT TERMINAL" LOOK */}
-          <section className="w-full md:w-96 bg-white border-l border-slate-100 shadow-[0_0_80px_rgba(0,0,0,0.05)] flex flex-col h-[70vh] md:h-full z-40 relative">
-            <div className="p-8 pb-4">
-                <span className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em]">Checkout</span>
-                <h2 className="text-2xl font-black text-black tracking-tight">Tu Carrito</h2>
+          {/* SHOPPING CART SIDEBAR - THE IMPROVED LAYOUT */}
+          <section className="w-full md:w-[400px] bg-white border-l border-slate-100 shadow-[0_0_80px_rgba(0,0,0,0.05)] flex flex-col max-h-[60vh] md:max-h-full z-40 relative">
+            
+            {/* COMPACT HEADER */}
+            <div className="p-6 md:p-8 pb-3 border-b border-slate-50 flex justify-between items-end">
+                <div>
+                    <span className="text-[9px] font-black text-blue-500 uppercase tracking-[0.3em] block mb-1">Checkout</span>
+                    <h2 className="text-xl md:text-2xl font-black text-black tracking-tight">Tu Carrito</h2>
+                </div>
+                <div className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-[10px] font-black">
+                    {carrito.reduce((a, b) => a + b.cant, 0)} ITEMS
+                </div>
             </div>
 
             {/* AREA SCROLLABLE: Carrito + Calculadora */}
-            <div className="flex-1 overflow-y-auto px-8 space-y-6">
+            <div className="flex-1 overflow-y-auto px-6 md:px-8 py-4 space-y-4">
                 {carrito.length > 0 ? (
                   <>
-                    <div className="space-y-6 mb-6">
+                    <div className="space-y-4">
                         {carrito.map(i => (
-                            <div key={i.id} className="flex justify-between items-start animate-in slide-in-from-right-4">
+                            <div key={i.id} className="flex justify-between items-center group animate-in slide-in-from-right-4 border-b border-slate-50 pb-3 last:border-0">
                                 <div className="flex-1 pr-4">
-                                    <span className="font-black text-slate-800 uppercase text-[11px] block leading-tight">{i.nombre}</span>
-                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{i.cant} {i.unidad_medida} x ${i.precio}</span>
+                                    <span className="font-black text-slate-800 uppercase text-[10px] block leading-tight">{i.nombre}</span>
+                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{i.cant} {i.unidad_medida} x ${i.precio}</span>
                                 </div>
-                                <div className="flex flex-col items-end gap-2">
-                                    <span className="font-black text-black text-sm">${(i.precio * i.cant).toFixed(2)}</span>
+                                <div className="flex items-center gap-3">
+                                    <span className="font-black text-black text-sm tabular-nums">${(i.precio * i.cant).toFixed(2)}</span>
                                     <button 
                                         onClick={() => setCarrito(carrito.filter(x => x.id !== i.id))} 
-                                        className="w-6 h-6 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-sm"
+                                        className="w-7 h-7 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shadow-sm"
                                     >
-                                        <span className="text-[14px]">×</span>
+                                        <span className="text-[16px] leading-none">×</span>
                                     </button>
                                 </div>
                             </div>
                         ))}
                     </div>
 
-                    {/* CALCULETA DE CAMBIO DENTRO DEL SCROLL */}
+                    {/* CALCULETA DE CAMBIO DENTRO DEL SCROLL - COMPACTA */}
                     {metodoPago === 'efectivo' && (
-                        <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100 animate-in zoom-in-95 mb-6">
+                        <div className="bg-slate-50 p-5 rounded-[2.5rem] border border-slate-100 animate-in zoom-in-95 my-4">
                             <p className="text-[8px] font-black text-blue-600 uppercase tracking-[0.2em] mb-2 text-center">Calculadora de Cambio</p>
                             <input 
                                 type="number" 
                                 placeholder="Monto recibido" 
-                                className="w-full bg-transparent text-center text-black p-2 rounded-xl font-black text-3xl outline-none placeholder:text-slate-300"
+                                className="w-full bg-transparent text-center text-black p-1 rounded-xl font-black text-2xl outline-none placeholder:text-slate-300"
                                 value={pagoCon}
                                 onChange={(e) => setPagoCon(e.target.value)}
                             />
                             {pagoCon > 0 && (
-                                <div className="mt-4 pt-4 border-t border-slate-200 flex justify-between items-center px-4">
-                                    <span className="text-[10px] font-black text-emerald-600 uppercase">Cambio:</span>
-                                    <span className="text-2xl font-black text-emerald-600">
+                                <div className="mt-3 pt-3 border-t border-slate-200 flex justify-between items-center px-2">
+                                    <span className="text-[9px] font-black text-emerald-600 uppercase">Cambio:</span>
+                                    <span className="text-xl font-black text-emerald-600">
                                         ${(pagoCon - (carrito.reduce((a,b)=>a+(b.precio*b.cant),0) * (ajustes.aplicar_isr ? 1.16 : 1))).toFixed(2)}
                                     </span>
                                 </div>
@@ -741,41 +744,41 @@ export default function VelascoPOS_Ultimate() {
                     )}
                   </>
                 ) : (
-                    <div className="h-full flex flex-col items-center justify-center opacity-20 text-center space-y-4 py-20">
-                        <div className="text-6xl">🛒</div>
-                        <p className="text-[10px] font-black uppercase tracking-widest leading-loose">Terminal lista para<br/>escaneo de productos</p>
+                    <div className="h-40 flex flex-col items-center justify-center opacity-30 text-center space-y-3">
+                        <div className="text-4xl">🛒</div>
+                        <p className="text-[9px] font-black uppercase tracking-widest leading-loose">Terminal lista para<br/>escaneo de productos</p>
                     </div>
                 )}
             </div>
             
-            {/* FOOTER FIJO: Total y Botones de Pago */}
-            <div className="p-8 bg-slate-900 md:rounded-t-[4rem] shadow-[0_-20px_60px_rgba(0,0,0,0.2)] text-white">
+            {/* FOOTER FIJO: Total y Botones de Pago - OPTIMIZADO */}
+            <div className="p-6 md:p-8 bg-slate-900 md:rounded-t-[3.5rem] shadow-[0_-20px_60px_rgba(0,0,0,0.2)] text-white">
                 
-                <div className="flex gap-2 mb-8 bg-white/5 p-1.5 rounded-2xl">
-                    <button onClick={() => setMetodoPago('efectivo')} className={`flex-1 py-3 rounded-xl text-[10px] font-black transition-all ${metodoPago === 'efectivo' ? 'bg-white text-black shadow-lg' : 'text-slate-400'}`}>EFECTIVO</button>
-                    <button onClick={() => setMetodoPago('tarjeta')} className={`flex-1 py-3 rounded-xl text-[10px] font-black transition-all ${metodoPago === 'tarjeta' ? 'bg-white text-black shadow-lg' : 'text-slate-400'}`}>TARJETA</button>
+                <div className="flex gap-2 mb-6 bg-white/5 p-1 rounded-xl">
+                    <button onClick={() => setMetodoPago('efectivo')} className={`flex-1 py-2.5 rounded-lg text-[9px] font-black transition-all ${metodoPago === 'efectivo' ? 'bg-white text-black shadow-lg' : 'text-slate-400'}`}>EFECTIVO</button>
+                    <button onClick={() => setMetodoPago('tarjeta')} className={`flex-1 py-2.5 rounded-lg text-[9px] font-black transition-all ${metodoPago === 'tarjeta' ? 'bg-white text-black shadow-lg' : 'text-slate-400'}`}>TARJETA</button>
                 </div>
 
-                <div className="flex justify-between items-center mb-8">
+                <div className="flex justify-between items-end mb-6">
                     <div>
-                        <span className="text-slate-500 font-black uppercase text-[10px] tracking-widest block mb-1">Total Final</span>
-                        {ajustes.aplicar_isr && <span className="text-emerald-500 font-black text-[8px] uppercase">ISR 16% Incluido</span>}
+                        <span className="text-slate-500 font-black uppercase text-[9px] tracking-widest block mb-0.5">Total Final</span>
+                        {ajustes.aplicar_isr && <span className="text-emerald-500 font-black text-[7px] uppercase">ISR 16% Incluido</span>}
                     </div>
-                    <span className="text-4xl font-black text-white tracking-tighter tabular-nums">
+                    <span className="text-3xl font-black text-white tracking-tighter tabular-nums leading-none">
                         ${(carrito.reduce((a,b)=>a+(b.precio*b.cant),0) * (ajustes.aplicar_isr ? 1.16 : 1)).toFixed(2)}
                     </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                     <button 
                         onClick={() => finalizarVenta(false)} 
-                        className="bg-slate-800 py-6 rounded-3xl font-black text-[11px] uppercase tracking-widest active:scale-95 transition-transform"
+                        className="bg-slate-800 py-4 md:py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest active:scale-95 transition-transform border border-white/5"
                     >
                         Registro
                     </button>
                     <button 
                         onClick={() => finalizarVenta(true)} 
-                        className="bg-blue-600 py-6 rounded-3xl font-black text-[11px] uppercase tracking-widest shadow-xl shadow-blue-500/20 active:scale-95 transition-transform"
+                        className="bg-blue-600 py-4 md:py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl shadow-blue-500/20 active:scale-95 transition-transform"
                     >
                         Imprimir
                     </button>
@@ -1215,7 +1218,7 @@ export default function VelascoPOS_Ultimate() {
       {/* VIEW: SETTINGS - CONTROL PANEL */}
       {vista === 'ajustes' && (
         <main className="flex-1 p-8 md:p-12 overflow-y-auto animate-in slide-in-from-right-10 duration-700">
-          <div className="max-w-xl mx-auto space-y-10">
+          <div className="max-xl mx-auto space-y-10">
             <div className="bg-white p-12 rounded-[4rem] shadow-2xl border border-white">
               <div className="text-center mb-12">
                 <h2 className="font-black text-4xl mb-3 italic uppercase text-black tracking-tighter">Panel Maestro</h2>
