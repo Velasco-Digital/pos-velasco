@@ -258,7 +258,7 @@ export default function VelascoPOS_Ultimate() {
               </center>
               ${pagosHoy.map(p => `
                   <div class="flex">
-                      <span>${p.proveedores?.nombre?.substring(0,15) || 'Proveedor Oculto'}</span>
+                      <span>${p.proveedores?.nombre?.substring(0,15) || 'Proveedor Eliminado'}</span>
                       <span>$${parseFloat(p.monto_total).toFixed(2)}</span>
                   </div>
               `).join('')}
@@ -874,7 +874,7 @@ export default function VelascoPOS_Ultimate() {
           <div className="max-w-5xl mx-auto">
             <div className="mb-12">
                 <span className="bg-blue-100 text-blue-600 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 inline-block">Multipagos Hub</span>
-                <h2 className="text-5xl font-black text-black tracking-tight mb-4">Ingresos Extra</h2>
+                <h2 className="text-5xl font-black text-black tracking-tight mb-4">Pagos de Servicios</h2>
                 <p className="text-slate-400 text-sm font-medium max-w-xl">Módulo de ingeniería para la gestión de servicios digitales. Registra comisiones de forma automática en tu corte diario.</p>
             </div>
             
@@ -1152,7 +1152,7 @@ export default function VelascoPOS_Ultimate() {
 
                 <div className="bg-white rounded-[4rem] shadow-sm border border-white overflow-hidden">
                     <div className="p-10 border-b flex justify-between items-center bg-orange-50/30">
-                        <h2 className="text-xl font-black uppercase tracking-tighter italic text-orange-950">Últimos Egresos</h2>
+                        <h2 className="text-xl font-black uppercase tracking-tighter italic text-orange-950">Gastos de Proveedores</h2>
                     </div>
                     <div className="max-h-96 overflow-y-auto">
                         {compras.map(c => (
@@ -1176,7 +1176,7 @@ export default function VelascoPOS_Ultimate() {
             <div className="space-y-10">
                 <div className={`p-10 rounded-[4rem] shadow-2xl border-b-[16px] transition-all duration-700 ${editandoProv ? 'bg-blue-600 border-white' : 'bg-slate-900 border-blue-600'}`}>
                     <h2 className="font-black text-2xl mb-8 italic uppercase text-white tracking-tighter flex items-center gap-4">
-                        <span>{editandoProv ? '📝' : '🔌'}</span> {editandoProv ? 'Edición' : 'Alta de Alianza'}
+                        <span>{editandoProv ? '📝' : '🔌'}</span> {editandoProv ? 'Edición' : 'Alta de Proveedores'}
                     </h2>
                     <div className="space-y-6">
                         <div className="space-y-2">
